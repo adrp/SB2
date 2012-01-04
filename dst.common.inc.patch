@@ -1,0 +1,12 @@
+diff --git "a/includes/common.inc" "b/includes/common.inc"
+index 1e76c75..bdf76e1 100644
+--- "a/includes/common.inc"
++++ "b/includes/common.inc"
+@@ -1314,7 +1314,6 @@ function format_interval($timestamp, $granularity = 2, $langcode = NULL) {
+  *   A translated date string in the requested format.
+  */
+ function format_date($timestamp, $type = 'medium', $format = '', $timezone = NULL, $langcode = NULL) {
+-  if(function_exists('dst_format_date') ) return dst_format_date($timestamp, $type, $format, $timezone);
+   if (!isset($timezone)) {
+     global $user;
+     if (variable_get('configurable_timezones', 1) && $user->uid && strlen($user->timezone)) {
