@@ -1,8 +1,8 @@
 diff --git "a/includes/common.inc" "b/includes/common.inc"
-index 1e76c75..bdf76e1 100644
+index bdf76e1..1e76c75 100644
 --- "a/includes/common.inc"
 +++ "b/includes/common.inc"
-@@ -1314,7 +1314,8 @@ function format_interval($timestamp, $granularity = 2, $langcode = NULL) {
+@@ -1314,6 +1314,7 @@ function format_interval($timestamp, $granularity = 2, $langcode = NULL) {
   *   A translated date string in the requested format.
   */
  function format_date($timestamp, $type = 'medium', $format = '', $timezone = NULL, $langcode = NULL) {
