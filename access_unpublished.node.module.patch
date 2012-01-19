@@ -1,13 +1,13 @@
-diff --git "a/modules/node/node.module" "b/modules/node/node.module"
+diff --git a/modules/node/node.module b/modules/node/node.module
 index ef312f5..a35aa79 100644
---- "a/modules/node/node.module"
-+++ "b/modules/node/node.module"
+--- a/modules/node/node.module
++++ b/modules/node/node.module
 @@ -1129,7 +1129,7 @@ function theme_node_log_message($log) {
   * Implementation of hook_perm().
   */
  function node_perm() {
--  $perms = array('administer content types', 'administer nodes', 'access content', 'view revisions', 'revert revisions', 'delete revisions', 'access unpublished nodes');
-+  $perms = array('administer content types', 'administer nodes', 'access content', 'view revisions', 'revert revisions', 'delete revisions');
+-  $perms = array('administer content types', 'administer nodes', 'access content', 'view revisions', 'revert revisions', 'delete revisions');
++  $perms = array('administer content types', 'administer nodes', 'access content', 'view revisions', 'revert revisions', 'delete revisions', 'access unpublished nodes');
  
    foreach (node_get_types() as $type) {
      if ($type->module == 'node') {
@@ -15,8 +15,8 @@ index ef312f5..a35aa79 100644
  
    // If the module did not override the access rights, use those set in the
    // node_access table.
--  if ($op != 'create' && $node->nid && ($node->status || user_access('access unpublished nodes', $account))) {
-+  if ($op != 'create' && $node->nid && $node->status) {
+-  if ($op != 'create' && $node->nid && $node->status) {
++  if ($op != 'create' && $node->nid && ($node->status || user_access('access unpublished nodes', $account))) {
      $grants = array();
      foreach (node_access_grants($op, $account) as $realm => $gids) {
        foreach ($gids as $gid) {
