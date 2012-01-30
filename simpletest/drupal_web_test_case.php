@@ -495,13 +495,11 @@ abstract class DrupalTestCase {
    *   Randomly generated string.
    */
   public static function randomString($length = 8) {
-    global $db_prefix;
-
     $str = '';
     for ($i = 0; $i < $length; $i++) {
       $str .= chr(mt_rand(32, 126));
     }
-    return str_replace('simpletest', 's', $db_prefix) . $str;
+    return str_replace('simpletest', 's', simpletest_get_prefix()) . $str;
   }
 
   /**
@@ -518,15 +516,13 @@ abstract class DrupalTestCase {
    *   Randomly generated string.
    */
   public static function randomName($length = 8) {
-    global $db_prefix;
-
     $values = array_merge(range(65, 90), range(97, 122), range(48, 57));
     $max = count($values) - 1;
     $str = '';
     for ($i = 0; $i < $length; $i++) {
       $str .= chr($values[mt_rand(0, $max)]);
     }
-    return str_replace('simpletest', 's', $db_prefix) . $str;
+    return str_replace('simpletest', 's', simpletest_get_prefix()) . $str;
   }
 
 }
@@ -558,9 +554,10 @@ class DrupalUnitTestCase extends DrupalTestCase {
 
     // Generate temporary prefixed database to ensure that tests have a clean starting point.
 //    $db_prefix = Database::getConnection()->prefixTables('{simpletest' . mt_rand(1000, 1000000) . '}');
-    $db_prefix = $db_prefix . 'simpletest' . mt_rand(1000, 1000000);
+    //$db_prefix = $db_prefix . 'simpletest' . mt_rand(1000, 1000000);
+    $db_prefix = simpletest_new_prefix();
 //    $conf['file_public_path'] = $this->originalFileDirectory . '/' . $db_prefix;
-    $conf['file_directory_path'] = $this->originalFileDirectory . '/simpletest/' . substr($db_prefix, 10);
+    $conf['file_directory_path'] = $this->originalFileDirectory . '/simpletest/' . substr(simpletest_get_prefix(), 10);
 
     // If locale is enabled then t() will try to access the database and
     // subsequently will fail as the database is not accessible.
@@ -574,7 +571,7 @@ class DrupalUnitTestCase extends DrupalTestCase {
 
   function tearDown() {
     global $db_prefix, $conf;
-    if (preg_match('/simpletest\d+/', $db_prefix)) {
+    if (preg_match('/simpletest\d+/', simpletest_get_prefix())) {
 //      $conf['file_public_path'] = $this->originalFileDirectory;
       $conf['file_directory_path'] = $this->originalFileDirectory;
       // Return the database prefix to the original.
@@ -1084,11 +1081,12 @@ class DrupalWebTestCase extends DrupalTestCase {
 
     // Generate temporary prefixed database to ensure that tests have a clean starting point.
 //    $db_prefix_new = Database::getConnection()->prefixTables('{simpletest' . mt_rand(1000, 1000000) . '}');
-    $db_prefix_new = $db_prefix . 'simpletest' . mt_rand(1000, 1000000);
+    //$db_prefix_new = $db_prefix . 'simpletest' . mt_rand(1000, 1000000);
+    $db_prefix_new = simpletest_new_prefix();
 
     // Workaround to insure we init the theme layer before going into prefixed
     // environment. (Drupal 6)
-    $this->pass(t('Starting run with db_prefix %prefix', array('%prefix' => $db_prefix_new)), 'System');
+    $this->pass(t('Starting run with db_prefix %prefix', array('%prefix' => simpletest_get_prefix($db_prefix_new))), 'System');
 
 //    db_update('simpletest_test_id')
 //      ->fields(array('last_prefix' => $db_prefix_new))
@@ -1096,12 +1094,12 @@ class DrupalWebTestCase extends DrupalTestCase {
 //      ->execute();
     db_query("UPDATE {simpletest_test_id}
               SET last_prefix = '%s'
-              WHERE test_id = %d", $db_prefix_new, $this->testId);
+              WHERE test_id = %d", simpletest_get_prefix($db_prefix_new), $this->testId);
     $db_prefix = $db_prefix_new;
 
     // Create test directory ahead of installation so fatal errors and debug
     // information can be logged during installation process.
-    $directory = $this->originalFileDirectory . '/simpletest/' . substr($db_prefix, 10);
+    $directory = $this->originalFileDirectory . '/simpletest/' . substr(simpletest_get_prefix(), 10);
 //    file_prepare_directory($directory, FILE_CREATE_DIRECTORY | FILE_MODIFY_PERMISSIONS);
     file_check_directory($directory, FILE_CREATE_DIRECTORY | FILE_MODIFY_PERMISSIONS);
 
@@ -1178,7 +1176,7 @@ class DrupalWebTestCase extends DrupalTestCase {
     // Use temporary files directory with the same prefix as the database.
 //    $public_files_directory  = $this->originalFileDirectory . '/' . $db_prefix;
 //    $private_files_directory = $public_files_directory . '/private';
-    $directory = $this->originalFileDirectory . '/' . $db_prefix;
+    $directory = $this->originalFileDirectory . '/' . simpletest_get_prefix();
 
     // Set path variables
 //    variable_set('file_public_path', $public_files_directory);
@@ -1235,7 +1233,7 @@ class DrupalWebTestCase extends DrupalTestCase {
     // log to pick up any fatal errors.
     $db_prefix_temp = $db_prefix;
     $db_prefix = $this->originalPrefix;
-    simpletest_log_read($this->testId, $db_prefix, get_class($this), TRUE);
+    simpletest_log_read($this->testId, simpletest_get_prefix(), get_class($this), TRUE);
     $db_prefix = $db_prefix_temp;
 
     $emailCount = count(variable_get('drupal_test_email_collector', array()));
@@ -1330,7 +1328,7 @@ class DrupalWebTestCase extends DrupalTestCase {
     }
     // We set the user agent header on each request so as to use the current
     // time and a new uniqid.
-    if (preg_match('/simpletest\d+/', $db_prefix, $matches)) {
+    if (preg_match('/simpletest\d+/', simpletest_get_prefix(), $matches)) {
       curl_setopt($this->curlHandle, CURLOPT_USERAGENT, drupal_generate_test_ua($matches[0]));
     }
   }
@@ -2631,4 +2629,20 @@ function simpletest_verbose($message, $original_file_directory = NULL, $test_cla
     return file_check_directory($directory, FILE_CREATE_DIRECTORY);
   }
   return FALSE;
+}
+
+function simpletest_new_prefix() {
+  global $prefix;
+  if (is_array($db_prefix)) {
+    $prefix = 'simpletest'. mt_rand(1000, 1000000);
+    $db_prefix_new = $db_prefix;
+    foreach ($db_prefix_new as $key => $value) {
+      $db_prefix_new[$key] = $prefix . $value;
+    }
+    //$db_prefix_new = $db_prefix['default'] . 'simpletest' . mt_rand(1000, 1000000);
+  }
+  else {
+    $db_prefix_new = $db_prefix . 'simpletest' . mt_rand(1000, 1000000);
+  }
+  return $db_prefix_new;
 }
