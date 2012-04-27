@@ -1,0 +1,25 @@
+From acef9eca339da9b4a6a5ea528f3f4188667b6465 Mon Sep 17 00:00:00 2001
+From: adrp <fake@mail>
+Date: Fri, 27 Apr 2012 11:19:01 +0200
+Subject: [PATCH] Changes applied - relevant content patch 1 prepare (http://drupal.org/node/723526).
+
+---
+ relevant_content.module |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/relevant_content.module b/relevant_content.module
+index 871e33b..6cbd909 100644
+--- a/relevant_content.module
++++ b/relevant_content.module
+@@ -558,7 +558,7 @@ SELECT
+   n.type AS type,
+   COUNT(*) AS cnt
+ FROM {node} n
+-LEFT JOIN {term_node} tn ON tn.nid = n.nid AND {$term_sql}
++LEFT JOIN {term_node} tn ON tn.vid = n.vid AND {$term_sql}
+ WHERE {$types_sql} AND n.status = 1 AND tn.tid IS NOT NULL {$exclude_sql}
+ GROUP BY n.nid
+ ORDER BY cnt DESC, n.created DESC, n.nid DESC
+-- 
+1.7.2.5
+
