@@ -1,0 +1,25 @@
+From 20b61637d221afa0c3b501e69faa74cbf9598a6a Mon Sep 17 00:00:00 2001
+From: adrp <fake@mail>
+Date: Fri, 27 Apr 2012 11:29:11 +0200
+Subject: [PATCH] Changes applied - elevant content patch 2 prepare (https://redmine.serwisyregionalne.pl/issues/9391).
+
+---
+ relevant_content.module |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/relevant_content.module b/relevant_content.module
+index 6cbd909..d426694 100644
+--- a/relevant_content.module
++++ b/relevant_content.module
+@@ -559,7 +559,7 @@ SELECT
+   COUNT(*) AS cnt
+ FROM {node} n
+ LEFT JOIN {term_node} tn ON tn.vid = n.vid AND {$term_sql}
+-WHERE {$types_sql} AND n.status = 1 AND tn.tid IS NOT NULL {$exclude_sql}
++WHERE {$types_sql} AND n.status = 1 AND tn.tid IS NOT NULL {$exclude_sql} AND DATE_SUB(CURDATE(), INTERVAL 6 MONTH) <= FROM_UNIXTIME(n.created)
+ GROUP BY n.nid
+ ORDER BY cnt DESC, n.created DESC, n.nid DESC
+ LIMIT %d
+-- 
+1.7.2.5
+
