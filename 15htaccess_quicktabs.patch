@@ -1,5 +1,5 @@
---- a/.htaccess
-+++ b/.htaccess
+--- .htaccess
++++ .htaccess
 @@ -163,6 +163,10 @@ DirectoryIndex index.php
    RewriteCond %{REQUEST_URI} !^404.%1$
    RewriteRule ^(.*)$ 404.%1 [L]
