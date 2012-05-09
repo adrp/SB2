@@ -1,6 +1,6 @@
 --- a/.htaccess
 +++ b/.htaccess
-@@ -156,6 +156,12 @@ DirectoryIndex index.php
+@@ -156,6 +156,12 @@
    RewriteCond %{QUERY_STRING} quicktabs_\d{1,2}=\d{1,2}
    RewriteRule ^(.*)$ 404-error.php [L]
  

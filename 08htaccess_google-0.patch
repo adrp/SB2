@@ -1,6 +1,6 @@
 --- a/.htaccess
 +++ b/.htaccess
-@@ -22,6 +22,11 @@ ErrorDocument 404 /index.php
+@@ -22,6 +22,11 @@
    ErrorDocument 404 "The requested file favicon.ico was not found.
  </Files>
  
@@ -12,7 +12,7 @@
  # Set the default handler.
  DirectoryIndex index.php
  
-@@ -141,6 +146,12 @@ DirectoryIndex index.php
+@@ -141,6 +146,12 @@
    #RewriteCond %{REQUEST_URI} !^/upload_element_js/.*
    #RewriteRule ^(.*) https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
  

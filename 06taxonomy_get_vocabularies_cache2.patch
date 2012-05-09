@@ -1,7 +1,5 @@
-Index: modules/taxonomy/taxonomy.module
-===================================================================
---- modules/taxonomy/taxonomy.module	(revision 22)
-+++ modules/taxonomy/taxonomy.module	(working copy)
+--- modules/taxonomy/taxonomy.module
++++ modules/taxonomy/taxonomy.module
 @@ -467,10 +467,19 @@
   *   If set, return only those vocabularies associated with this node type.
   */
