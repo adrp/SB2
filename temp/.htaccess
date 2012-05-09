@@ -27,6 +27,11 @@ ErrorDocument 404 /index.php
     ErrorDocument 404 /404-error.php
 </FilesMatch>
 
+# This overrides the Drupal 404 handler for files that should never be handled by Drupal
+<FilesMatch "\.(gif|jpe?g|png|bmp|js|css)$">
+    ErrorDocument 404 /404-error.php
+</FilesMatch>
+
 # Set the default handler.
 DirectoryIndex index.php
 
@@ -145,6 +150,12 @@ DirectoryIndex index.php
   #RewriteCond %{REQUEST_URI} !^(|/.*)autocomplete(|/.*)
   #RewriteCond %{REQUEST_URI} !^/upload_element_js/.*
   #RewriteRule ^(.*) https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_URI} !^.*(sites/.*/imagecache/.*)$
+  RewriteCond %{REQUEST_URI} \.(gif|jpe?g|png|bmp|js|css)$
+  RewriteCond %{REQUEST_URI} !^404.%1$
+  RewriteRule ^(.*)$ 404.%1 [L]
 
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_URI} !^.*(sites/.*/imagecache/.*)$
