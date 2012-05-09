@@ -1,0 +1,69 @@
+--- 404-error.php
++++ 404-error.php
+@@ -0,0 +1,66 @@
++<?php
++$server_local = array(
++  'nto' => array(
++    'name' =>'opolskie',
++  ),
++  'dziennikwschodni' => array(
++    'name' =>'lubelskie',
++  ),
++  'echodnia' => array(
++    'name' =>'świętokrzyskie',
++  ),
++  'podlaskie' => array(
++    'name' =>'podlaskie',
++  ),
++  'pomorska' => array(
++    'name' =>'kujawsko-pomorskie',
++  ),
++  'gazetalubuska' => array(
++    'name' =>'lubuskie',
++  ),
++  'gp24' => array(
++    'name' =>'pomorskie i zachodniopomorskie',
++  ),
++  'to' => array(
++    'name' =>'Ostrołęka',
++  ),
++  'nowiny24' => array(
++    'name' =>'podkarpackie',
++  ),
++);
++foreach ($server_local as $key => $value) {
++  if (in_array($key, explode('.', $_SERVER['HTTP_HOST']))) {
++      $output = <<< EOT
++        <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
++        "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
++        <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
++          <head>
++            <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
++            <title>Strona nie istnieje | $value[name] </title>
++            <meta content="pl" name="language" />
++            <meta content="Media Regionalne" name="author" />
++            <meta content="noindex,nofollow" name="robots" />
++          </head>
++          <body>
++            <div style="text-align:center">
++              Strona o podanym adresie nie istnieje.
++              <br /><br />
++              Zapraszamy na
++              <a href="http://{$_SERVER['HTTP_HOST']}">Strefa Biznesu $value[name]- lokalny portal przedsiębiorców</a>
++            </div>
++          </body>
++        </html>
++EOT;
++  }
++}
++if (!empty($output)) {
++  header('HTTP/1.1 404 Not Found');
++  header('Content-Type: text/html; charset=utf-8');
++  print $output;
++}
++else {
++    header('HTTP/1.1 404 Not Found');
++    header('Content-Type: text/html; charset=utf-8');
++    echo "<h1>404 Not Found</h1>";
++    echo "The page that you have requested could not be found.";
++}
