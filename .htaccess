@@ -156,6 +156,12 @@ DirectoryIndex index.php
   RewriteCond %{QUERY_STRING} quicktabs_\d{1,2}=\d{1,2}
   RewriteRule ^(.*)$ 404-error.php [L]
 
+  # Facebook Redirect For Added String
+  # If variable fb_xd_fragment present in url
+  # rewrite it - don't add variables
+  RewriteCond %{QUERY_STRING} .*fb_xd_fragment.*
+  RewriteRule ^(.*)$ $1? [R=301,L]
+
   # Rewrite URLs of the form 'x' to the form 'index.php?q=x'.
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
