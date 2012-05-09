@@ -152,6 +152,10 @@ DirectoryIndex index.php
   RewriteCond %{REQUEST_URI} !^404.%1$
   RewriteRule ^(.*)$ 404.%1 [L]
 
+  # See: RM #4797 (quicktabs)
+  RewriteCond %{QUERY_STRING} quicktabs_\d{1,2}=\d{1,2}
+  RewriteRule ^(.*)$ 404-error.php [L]
+
   # Rewrite URLs of the form 'x' to the form 'index.php?q=x'.
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
