@@ -1,5 +1,5 @@
---- 404-error.php
-+++ 404-error.php
+--- /dev/null
++++ b/404-error.php
 @@ -0,0 +1,66 @@
 +<?php
 +$server_local = array(
