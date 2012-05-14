@@ -1,0 +1,26 @@
+--- a/epsacrop.module
++++ b/epsacrop.module
+@@ -205,7 +205,7 @@ function epsacrop_nodeapi(&$node, $op, $a3, $a4) {
+  */
+ function epsacrop_form_alter(&$form, $form_state, $form_id) {
+   if (eregi('_node_form', $form_id) || $form_id == 'editablefields_form') {
+-    _epsacrop_include_html();
++    $form['#after_build'][] = '_epsacrop_form_after_build';
+     $node = $form['#node'];
+     if (empty($node) && is_array($form['#parameters'])) {
+       foreach ($form['#parameters'] as $param) {
+@@ -226,6 +226,14 @@ function epsacrop_form_alter(&$form, $form_state, $form_id) {
+   }
+ }
+ 
++/**
++ * Add scripts and styles on a node edit page.
++ */
++function _epsacrop_form_after_build($form_element, &$form_state) {
++  _epsacrop_include_html();
++  return $form_element;
++}
++
+ /*
+  * Return version of Jcrop plugin and make sure that exists
+  */
