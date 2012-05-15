@@ -196,11 +196,13 @@ function corresponding_node_references_update($home_node, $home_field, $away_nod
  */
 function corresponding_node_references_delete($home_node, $home_field, $away_node_type, $away_field) {
   // Iterate through the field's references.
+  if (!is_array($home_node->$home_field)) return;
   foreach ($home_node->$home_field as $reference) {
     if (!empty($reference['nid'])) {
       // Load the referenced node if it is of the specified away type.
       if ($referenced_node = node_load(array('nid' => $reference['nid'], 'type' => $away_node_type), NULL, true)) {
         // Iterate through the away node's references.
+        if (!is_array($referenced_node->$away_field)) continue;
         foreach ($referenced_node->$away_field as $key => $value) {
           // Remove references to the deleted node.
           if ($value['nid'] && $value['nid'] == $home_node->nid) {
