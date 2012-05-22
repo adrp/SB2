@@ -12,7 +12,16 @@
  # Set the default handler.
  DirectoryIndex index.php
  
-@@ -106,6 +111,61 @@ DirectoryIndex index.php
+@@ -95,6 +100,8 @@ DirectoryIndex index.php
+   # uncomment and adapt the following:
+   # RewriteCond %{HTTP_HOST} ^www\.example\.com$ [NC]
+   # RewriteRule ^(.*)$ http://example.com/$1 [L,R=301]
++  RewriteCond %{HTTP_HOST} !^www\.
++  RewriteRule ^(.*)$ http://www.%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+ 
+   # Modify the RewriteBase if you are using Drupal in a subdirectory or in a
+   # VirtualDocumentRoot and the rewrite rules are not working properly.
+@@ -106,6 +113,61 @@ DirectoryIndex index.php
    # uncomment the following line:
    # RewriteBase /
  
@@ -69,7 +78,7 @@
 +  # If variable fb_xd_fragment present in url
 +  # rewrite it - don't add variables
 +  RewriteCond %{QUERY_STRING} .*fb_xd_fragment.*
-+  RewriteRule ^(.*)$ $1? [R=301,L]
++  RewriteRule ^(.*)$ /$1? [R=301,L]
 +
    # Rewrite URLs of the form 'x' to the form 'index.php?q=x'.
    RewriteCond %{REQUEST_FILENAME} !-f
