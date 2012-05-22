@@ -22,6 +22,11 @@ ErrorDocument 404 /index.php
   ErrorDocument 404 "The requested file favicon.ico was not found.
 </Files>
 
+# This overrides the Drupal 404 handler for files that should never be handled by Drupal
+<FilesMatch "\.(gif|jpe?g|png|bmp|js|css)$">
+    ErrorDocument 404 /404-error.php
+</FilesMatch>
+
 # Set the default handler.
 DirectoryIndex index.php
 
@@ -95,6 +100,8 @@ DirectoryIndex index.php
   # uncomment and adapt the following:
   # RewriteCond %{HTTP_HOST} ^www\.example\.com$ [NC]
   # RewriteRule ^(.*)$ http://example.com/$1 [L,R=301]
+  RewriteCond %{HTTP_HOST} !^www\.
+  RewriteRule ^(.*)$ http://www.%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
 
   # Modify the RewriteBase if you are using Drupal in a subdirectory or in a
   # VirtualDocumentRoot and the rewrite rules are not working properly.
@@ -105,6 +112,61 @@ DirectoryIndex index.php
   # If your site is running in a VirtualDocumentRoot at http://example.com/,
   # uncomment the following line:
   # RewriteBase /
+
+  # HTTPS redirect policy. [#3470]
+  RewriteCond %{HTTPS} on
+  RewriteCond %{REQUEST_URI}      !^/(user|utworz-konto|przypomnij-haslo)$
+  RewriteCond %{QUERY_STRING}     !^q=(user|utworz-konto|przypomnij-haslo)
+  RewriteCond %{REQUEST_URI}      !^/user(/login$|/register$|/password$|/reset/.*|/.*/edit)
+  RewriteCond %{QUERY_STRING}     !^q=user(/login$|/register$|/password$|/reset/.*|/.*/edit)
+  RewriteCond %{REQUEST_URI}      !^/uzytkownik/.*/(edit)
+  RewriteCond %{QUERY_STRING}     !^q=uzytkownik/.*/(edit)
+  RewriteCond %{REQUEST_URI}      !^/admin(|/.*)
+  RewriteCond %{QUERY_STRING}     !^q=admin(|/.*)
+  RewriteCond %{REQUEST_URI}      !^/js(|/.*)
+  RewriteCond %{QUERY_STRING}     !^q=js(|/.*)
+  RewriteCond %{REQUEST_URI}      !^(|/.*)ajax(|/.*)
+  RewriteCond %{QUERY_STRING}     !^q=(|/.*)ajax(|/.*)
+  RewriteCond %{REQUEST_URI}      !^(|/.*)ahah(|/.*)
+  RewriteCond %{QUERY_STRING}     !^q=(|/.*)ahah(|/.*)
+  RewriteCond %{REQUEST_URI}      !^(|/.*)autocomplete(|/.*)
+  RewriteCond %{QUERY_STRING}     !^q=(|/.*)autocomplete(|/.*)
+  RewriteCond %{REQUEST_URI}      !^/upload_element_js/.*
+  RewriteCond %{QUERY_STRING}     !^q=upload_element_js|/.*
+  RewriteCond %{REQUEST_URI}      !^(|/.*)crop/dialog(|/.*)
+  RewriteCond %{QUERY_STRING}     !^q=(|/.*)crop/dialog(|/.*)
+  RewriteRule ^(.*) http://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+  # RewriteCond %{HTTP_HOST} !^www.strefabiznesu.pl$
+  RewriteCond %{HTTPS} off
+  RewriteCond %{REQUEST_URI} ^/(user|utworz-konto|przypomnij-haslo)$ [OR]
+  RewriteCond %{REQUEST_URI} ^/user(/login$|/register$|/password$|/reset/.*|/.*/edit) [OR]
+  RewriteCond %{REQUEST_URI} ^/uzytkownik/.*/(edit) [OR]
+  RewriteCond %{REQUEST_URI} ^/admin(|/.*)
+  RewriteCond %{REQUEST_URI} !^/js(|/.*)
+  RewriteCond %{REQUEST_URI} !^(|/.*)ajax(|/.*)
+  RewriteCond %{REQUEST_URI} !^(|/.*)ahah(|/.*)
+  RewriteCond %{REQUEST_URI} !^(|/.*)autocomplete(|/.*)
+  RewriteCond %{REQUEST_URI} !^/upload_element_js/.*
+  RewriteCond %{REQUEST_URI} !^(|/.*)video_filter/dashboard(|/.*)
+  RewriteCond %{REQUEST_URI} !^(|/.*)crop/dialog(|/.*)
+  RewriteRule ^(.*) https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_URI} !^.*(sites/.*/imagecache/.*)$
+  RewriteCond %{REQUEST_URI} \.(gif|jpe?g|png|bmp|js|css)$
+  RewriteCond %{REQUEST_URI} !^404.%1$
+  RewriteRule ^(.*)$ 404.%1 [L]
+
+  # See: RM #4797 (quicktabs)
+  RewriteCond %{QUERY_STRING} quicktabs_\d{1,2}=\d{1,2}
+  RewriteRule ^(.*)$ 404-error.php [L]
+
+  # Facebook Redirect For Added String
+  # If variable fb_xd_fragment present in url
+  # rewrite it - don't add variables
+  RewriteCond %{QUERY_STRING} .*fb_xd_fragment.*
+  RewriteRule ^(.*)$ /$1? [R=301,L]
 
   # Rewrite URLs of the form 'x' to the form 'index.php?q=x'.
   RewriteCond %{REQUEST_FILENAME} !-f
