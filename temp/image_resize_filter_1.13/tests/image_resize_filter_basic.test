@@ -1,0 +1,692 @@
+<?php
+
+/**
+ * @file
+ * image_resize_filter module simpletest tests
+ *
+ * This file includes the defined tests for the image_resize_filter module.
+ *
+ * @ingroup image_resize_filter
+ */
+
+class ImageResizeFilterBasicTest extends DrupalWebTestCase {
+  protected $test_set;
+
+  /**
+   * Implementation of getInfo().
+   */
+  function getInfo() {
+    return array(
+      'name' => t('Image Resize Filter tests'),
+      'description' => t('Unit tests for the image_resize_filter module.'),
+      'group' => t('Image Resize Filter'),
+    );
+  }
+
+  /**
+   * Implementation of setUp().
+   */
+  function setUp() {
+    parent::setUp();
+    $this->test_set = array(
+      'set1' => array(
+        'input' => array(
+          'settings' => array(
+            'lim' => TRUE,
+            'limw' => 800,
+            'limh' => 600,
+          ),
+          'actual' => array(
+            'width' => 1024,
+            'height' => 768,
+          ),
+          'attributes' => array(
+            'width' => 700,
+          ),
+        ),
+        'output' => array(
+          'width' => 700,
+          'height' => (int) round(768/1024 * 700),
+        ),
+      ),
+      'set2' => array(
+        'input' => array(
+          'settings' => array(
+            'lim' => TRUE,
+            'limw' => 800,
+            'limh' => 600,
+          ),
+          'actual' => array(
+            'width' => 1024,
+            'height' => 768,
+          ),
+          'attributes' => array(
+            'width' => 900,
+          ),
+        ),
+        'output' => array(
+          'width' => 800,
+          'height' => (int) round(768/1024 * 800),
+        ),
+      ),
+      'set3' => array(
+        'input' => array(
+          'settings' => array(
+            'lim' => TRUE,
+            'limw' => 800,
+            'limh' => 600,
+          ),
+          'actual' => array(
+            'width' => 1024,
+            'height' => 768,
+          ),
+          'attributes' => array(
+            'height' => 500,
+          ),
+        ),
+        'output' => array(
+          'width' => (int) round(1024/768 * 500),
+          'height' => 500,
+        ),
+      ),
+      'set4' => array(
+        'input' => array(
+          'settings' => array(
+            'lim' => TRUE,
+            'limw' => 800,
+            'limh' => 600,
+          ),
+          'actual' => array(
+            'width' => 1024,
+            'height' => 768,
+          ),
+          'attributes' => array(
+            'height' => 700,
+          ),
+        ),
+        'output' => array(
+          'width' => (int) round(1024/768 * 600),
+          'height' => 600,
+        ),
+      ),
+      'set5' => array(
+        'input' => array(
+          'settings' => array(
+            'lim' => TRUE,
+            'limw' => 800,
+            'limh' => 600,
+          ),
+          'actual' => array(
+            'width' => 1024,
+            'height' => 768,
+          ),
+          'attributes' => array(
+            'width' => 900,
+            'height' => 450,
+          ),
+        ),
+        'output' => array(
+          'width' => 800,
+          'height' => (int) round(450/900 * 800),
+        ),
+      ),
+      'set6' => array(
+        'input' => array(
+          'settings' => array(
+            'lim' => TRUE,
+            'limw' => 800,
+            'limh' => 600,
+          ),
+          'actual' => array(
+            'width' => 1024,
+            'height' => 768,
+          ),
+          'attributes' => array(
+            'width' => 700,
+            'height' => 700,
+          ),
+        ),
+        'output' => array(
+          'width' => (int) round(700/700 * 600),
+          'height' => 600,
+        ),
+      ),
+      'set7' => array(
+        'input' => array(
+          'settings' => array(
+            'lim' => TRUE,
+            'limw' => 800,
+            'limh' => 600,
+          ),
+          'actual' => array(
+            'width' => 1024,
+            'height' => 768,
+          ),
+          'attributes' => array(
+            'width' => 900,
+            'height' => 700,
+          ),
+        ),
+        'output' => array(
+          'width' => (int) round(900/700 * 600),
+          'height' => 600,
+        ),
+      ),
+      'set8' => array(
+        'input' => array(
+          'settings' => array(
+            'lim' => TRUE,
+            'limw' => 800,
+            'limh' => 600,
+          ),
+          'actual' => array(
+            'width' => 1024,
+            'height' => 768,
+          ),
+          'attributes' => array(
+            'width' => 1000,
+            'height' => 700,
+          ),
+        ),
+        'output' => array(
+          'width' => 800,
+          'height' => (int) round(700/1000 * 800),
+        ),
+      ),
+      'set9' => array(
+        'input' => array(
+          'settings' => array(
+            'lim' => TRUE,
+            'limw' => 800,
+            'limh' => 600,
+          ),
+          'actual' => array(
+            'width' => 1024,
+            'height' => 512,
+          ),
+          'attributes' => array(
+          ),
+        ),
+        'output' => array(
+          'width' => 800,
+          'height' => (int) round(512/1024 * 800),
+        ),
+      ),
+      'set10' => array(
+        'input' => array(
+          'settings' => array(
+            'lim' => TRUE,
+            'limw' => 800,
+            'limh' => 600,
+          ),
+          'actual' => array(
+            'width' => 700,
+            'height' => 700,
+          ),
+          'attributes' => array(
+          ),
+        ),
+        'output' => array(
+          'width' => (int) round(700/700 * 600),
+          'height' => 600,
+        ),
+      ),
+      'set11' => array(
+        'input' => array(
+          'settings' => array(
+            'lim' => TRUE,
+            'limw' => 800,
+            'limh' => 600,
+          ),
+          'actual' => array(
+            'width' => 900,
+            'height' => 700,
+          ),
+          'attributes' => array(
+          ),
+        ),
+        'output' => array(
+          'width' => (int) round(900/700 * 600),
+          'height' => 600,
+        ),
+      ),
+      'set12' => array(
+        'input' => array(
+          'settings' => array(
+            'lim' => TRUE,
+            'limw' => 800,
+            'limh' => 600,
+          ),
+          'actual' => array(
+            'width' => 1000,
+            'height' => 700,
+          ),
+          'attributes' => array(
+          ),
+        ),
+        'output' => array(
+          'width' => 800,
+          'height' => (int) round(700/1000 * 800),
+        ),
+      ),
+      'set13' => array(
+        'input' => array(
+          'settings' => array(
+            'lim' => FALSE,
+            'limw' => 800,
+            'limh' => 600,
+          ),
+          'actual' => array(
+            'width' => 1024,
+            'height' => 768,
+          ),
+          'attributes' => array(
+            'width' => 700,
+          ),
+        ),
+        'output' => array(
+          'width' => 700,
+          'height' => (int) round(768/1024 * 700),
+        ),
+      ),
+      'set14' => array(
+        'input' => array(
+          'settings' => array(
+            'lim' => FALSE,
+            'limw' => 800,
+            'limh' => 600,
+          ),
+          'actual' => array(
+            'width' => 1024,
+            'height' => 768,
+          ),
+          'attributes' => array(
+            'width' => 900,
+          ),
+        ),
+        'output' => array(
+          'width' => 900,
+          'height' => (int) round(768/1024 * 900),
+        ),
+      ),
+      'set15' => array(
+        'input' => array(
+          'settings' => array(
+            'lim' => FALSE,
+            'limw' => 800,
+            'limh' => 600,
+          ),
+          'actual' => array(
+            'width' => 1024,
+            'height' => 768,
+          ),
+          'attributes' => array(
+            'height' => 500,
+          ),
+        ),
+        'output' => array(
+          'width' => (int) round(1024/768 * 500),
+          'height' => 500,
+        ),
+      ),
+      'set16' => array(
+        'input' => array(
+          'settings' => array(
+            'lim' => FALSE,
+            'limw' => 800,
+            'limh' => 600,
+          ),
+          'actual' => array(
+            'width' => 1024,
+            'height' => 768,
+          ),
+          'attributes' => array(
+            'height' => 700,
+          ),
+        ),
+        'output' => array(
+          'width' => (int) round(1024/768 * 700),
+          'height' => 700,
+        ),
+      ),
+      'set17' => array(
+        'input' => array(
+          'settings' => array(
+            'lim' => FALSE,
+            'limw' => 800,
+            'limh' => 600,
+          ),
+          'actual' => array(
+            'width' => 1024,
+            'height' => 768,
+          ),
+          'attributes' => array(
+            'width' => 900,
+            'height' => 450,
+          ),
+        ),
+        'output' => array(
+          'width' => 900,
+          'height' => (int) round(450/900 * 900),
+        ),
+      ),
+      'set18' => array(
+        'input' => array(
+          'settings' => array(
+            'lim' => FALSE,
+            'limw' => 800,
+            'limh' => 600,
+          ),
+          'actual' => array(
+            'width' => 1024,
+            'height' => 768,
+          ),
+          'attributes' => array(
+            'width' => 700,
+            'height' => 700,
+          ),
+        ),
+        'output' => array(
+          'width' => (int) round(700/700 * 700),
+          'height' => 700,
+        ),
+      ),
+      'set19' => array(
+        'input' => array(
+          'settings' => array(
+            'lim' => FALSE,
+            'limw' => 800,
+            'limh' => 600,
+          ),
+          'actual' => array(
+            'width' => 1024,
+            'height' => 768,
+          ),
+          'attributes' => array(
+            'width' => 900,
+            'height' => 700,
+          ),
+        ),
+        'output' => array(
+          'width' => (int) round(900/700 * 700),
+          'height' => 700,
+        ),
+      ),
+      'set20' => array(
+        'input' => array(
+          'settings' => array(
+            'lim' => FALSE,
+            'limw' => 800,
+            'limh' => 600,
+          ),
+          'actual' => array(
+            'width' => 1024,
+            'height' => 768,
+          ),
+          'attributes' => array(
+            'width' => 1000,
+            'height' => 700,
+          ),
+        ),
+        'output' => array(
+          'width' => 1000,
+          'height' => (int) round(700/1000 * 1000),
+        ),
+      ),
+      'set21' => array(
+        'input' => array(
+          'settings' => array(
+            'lim' => FALSE,
+            'limw' => 800,
+            'limh' => 600,
+          ),
+          'actual' => array(
+            'width' => 1024,
+            'height' => 512,
+          ),
+          'attributes' => array(
+          ),
+        ),
+        'output' => array(
+          'width' => 1024,
+          'height' => (int) round(512/1024 * 1024),
+        ),
+      ),
+      'set22' => array(
+        'input' => array(
+          'settings' => array(
+            'lim' => FALSE,
+            'limw' => 800,
+            'limh' => 600,
+          ),
+          'actual' => array(
+            'width' => 700,
+            'height' => 700,
+          ),
+          'attributes' => array(
+          ),
+        ),
+        'output' => array(
+          'width' => (int) round(700/700 * 700),
+          'height' => 700,
+        ),
+      ),
+      'set23' => array(
+        'input' => array(
+          'settings' => array(
+            'lim' => FALSE,
+            'limw' => 800,
+            'limh' => 600,
+          ),
+          'actual' => array(
+            'width' => 900,
+            'height' => 700,
+          ),
+          'attributes' => array(
+          ),
+        ),
+        'output' => array(
+          'width' => (int) round(900/700 * 700),
+          'height' => 700,
+        ),
+      ),
+      'set24' => array(
+        'input' => array(
+          'settings' => array(
+            'lim' => FALSE,
+            'limw' => 800,
+            'limh' => 600,
+          ),
+          'actual' => array(
+            'width' => 1000,
+            'height' => 700,
+          ),
+          'attributes' => array(
+          ),
+        ),
+        'output' => array(
+          'width' => 1000,
+          'height' => (int) round(700/1000 * 1000),
+        ),
+      ),
+      'set25' => array(
+        'input' => array(
+          'settings' => array(
+            'lim' => TRUE,
+            'limw' => 600,
+            'limh' => 1000,
+          ),
+          'actual' => array(
+            'width' => 1024,
+            'height' => 768,
+          ),
+          'attributes' => array(
+            'height' => 768,
+          ),
+        ),
+        'output' => array(
+          'width' => 600,
+          'height' => (int) round(768/1024 * 600),
+        ),
+      ),
+      'set26' => array(
+        'input' => array(
+          'settings' => array(
+            'lim' => TRUE,
+            'limw' => '',
+            'limh' => 600,
+          ),
+          'actual' => array(
+            'width' => 1024,
+            'height' => 768,
+          ),
+          'attributes' => array(
+            'width' => 700,
+          ),
+        ),
+        'output' => array(
+          'width' => 700,
+          'height' => (int) round(768/1024 * 700),
+        ),
+      ),
+      'set27' => array(
+        'input' => array(
+          'settings' => array(
+            'lim' => TRUE,
+            'limw' => 800,
+            'limh' => '',
+          ),
+          'actual' => array(
+            'width' => 1024,
+            'height' => 768,
+          ),
+          'attributes' => array(
+            'width' => 900,
+          ),
+        ),
+        'output' => array(
+          'width' => 800,
+          'height' => (int) round(768/1024 * 800),
+        ),
+      ),
+      'set28' => array(
+        'input' => array(
+          'settings' => array(
+            'lim' => TRUE,
+            'limw' => 800,
+            'limh' => '',
+          ),
+          'actual' => array(
+            'width' => 1024,
+            'height' => 768,
+          ),
+          'attributes' => array(
+            'height' => 500,
+          ),
+        ),
+        'output' => array(
+          'width' => (int) round(1024/768 * 500),
+          'height' => 500,
+        ),
+      ),
+      'set29' => array(
+        'input' => array(
+          'settings' => array(
+            'lim' => TRUE,
+            'limw' => '',
+            'limh' => 600,
+          ),
+          'actual' => array(
+            'width' => 1024,
+            'height' => 768,
+          ),
+          'attributes' => array(
+            'height' => 700,
+          ),
+        ),
+        'output' => array(
+          'width' => (int) round(1024/768 * 600),
+          'height' => 600,
+        ),
+      ),
+      'set30' => array(
+        'input' => array(
+          'settings' => array(
+            'lim' => TRUE,
+            'limw' => '',
+            'limh' => 600,
+          ),
+          'actual' => array(
+            'width' => 1024,
+            'height' => 768,
+          ),
+          'attributes' => array(
+            'width' => 700,
+            'height' => 700,
+          ),
+        ),
+        'output' => array(
+          'width' => (int) round(700/700 * 600),
+          'height' => 600,
+        ),
+      ),
+      'set31' => array(
+        'input' => array(
+          'settings' => array(
+            'lim' => TRUE,
+            'limw' => 800,
+            'limh' => '',
+          ),
+          'actual' => array(
+            'width' => 1024,
+            'height' => 512,
+          ),
+          'attributes' => array(
+          ),
+        ),
+        'output' => array(
+          'width' => 800,
+          'height' => (int) round(512/1024 * 800),
+        ),
+      ),
+      'set32' => array(
+        'input' => array(
+          'settings' => array(
+            'lim' => TRUE,
+            'limw' => '',
+            'limh' => 600,
+          ),
+          'actual' => array(
+            'width' => 700,
+            'height' => 700,
+          ),
+          'attributes' => array(
+          ),
+        ),
+        'output' => array(
+          'width' => (int) round(700/700 * 600),
+          'height' => 600,
+        ),
+      ),
+    );
+  }
+
+  function testImageResizeFilterSizeCalculation() {
+    foreach ($this->test_set as $name => $test) {
+      if (isset($test['input']['attributes']['width']) && isset($test['input']['attributes']['height'])) {
+        $attributes_ratio = $test['input']['attributes']['width'] / $test['input']['attributes']['height'];
+      }
+      else {
+        $attributes_ratio = 'none';
+      }
+    
+      image_resize_filter_calculate_size($test['input']['attributes'], $test['input']['settings'], $test['input']['actual'], $log, $prefix);
+    
+      $actual_ratio = $test['input']['actual']['width'] / $test['input']['actual']['height'];
+      $output_ratio = $test['output']['width'] / $test['output']['height'];
+    
+      $this->assertEqual($test['input']['attributes']['width'], $test['output']['width'], t("$name: calculate width equals expected value."));
+      $this->assertEqual($test['input']['attributes']['height'], $test['output']['height'], t("$name: calculate height equals expected value."));
+    }
+  }
+}
