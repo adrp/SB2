@@ -71,7 +71,7 @@ Drupal.behaviors.attachWysiwyg = function(context) {
       if (event.originalEvent.returnValue === false) {
         return;
       }
-      Drupal.wysiwygDetach(context, params);
+      $('#' + params.field).attr('value', Drupal.wysiwyg.instances[params.field].getContent());
     });
   });
 };
