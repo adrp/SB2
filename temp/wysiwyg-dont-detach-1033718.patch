@@ -1,16 +1,5 @@
-From c9b9c1928c8ebeaa271e5b8cbd66a3c0db180ee2 Mon Sep 17 00:00:00 2001
-From: adrp <fake@mail>
-Date: Wed, 30 May 2012 15:02:53 +0200
-Subject: [PATCH 2/2] Wysiwyg patched (don't detach on submit).
-
----
- temp/wysiwyg/wysiwyg.js |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
-
-diff --git a/temp/wysiwyg/wysiwyg.js b/temp/wysiwyg/wysiwyg.js
-index 193847b..8649fab 100644
---- a/temp/wysiwyg/wysiwyg.js
-+++ b/temp/wysiwyg/wysiwyg.js
+--- a/wysiwyg.js
++++ b/wysiwyg.js
 @@ -71,7 +71,7 @@ Drupal.behaviors.attachWysiwyg = function(context) {
        if (event.originalEvent.returnValue === false) {
          return;
@@ -20,6 +9,3 @@ index 193847b..8649fab 100644
      });
    });
  };
--- 
-1.7.2.5
-
