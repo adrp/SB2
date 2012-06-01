@@ -30,6 +30,7 @@ Drupal.wysiwyg.plugins['break'] = {
       var content = '<!--break-->';
     }
     if (typeof content != 'undefined') {
+      content = '<p>' + content + '</p>';
       Drupal.wysiwyg.instances[instanceId].insert(content);
     }
   },
