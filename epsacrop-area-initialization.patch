@@ -1,0 +1,70 @@
+--- a/js/epsacrop.js
++++ b/js/epsacrop.js
+@@ -67,12 +67,67 @@ Drupal.EPSACrop = {
+            // He doesn't calculate the scale with setSelect at the begining, so
+            // I add animateTo after initate the API.
+            Drupal.EPSACrop.api.animateTo(((typeof c == 'object') ? [c.x, c.y, c.x2, c.y2] : [0, 0, coords[0], coords[1]]));
++           Drupal.EPSACrop.init(delta);
+           }, 1000); // Sleep 1 second
+        }catch(err) {
+     	   alert(Drupal.t("Error on load : @error", {'@error': err.message}));
+        }
+     }); // fin load
+  }, // dialog
++ init: function ( delta ) {
++   // Init the crop settings so than when a user
++   // hits save button without adjusting the area
++   // those settings (visible for him) will be saved.
++   $('.epsacrop-presets-menu a').each(function() {
++     var preset = $(this).attr('id');
++	   var coords = $(this).attr('rel').split('x');
++     if(typeof Drupal.EPSACrop.presets[delta] != 'object') {
++     	Drupal.EPSACrop.presets[delta] = {};
++     }
++     if(typeof Drupal.EPSACrop.presets[delta][preset] != 'object') {
++       var c = new Object();
++       c.x = 0;
++       c.y = 0;
++       c.x2 = coords[0];
++       c.y2 = coords[1];
++       c.w = coords[0];
++       c.h = coords[1];
++       Drupal.EPSACrop.determineSize(c, $('#epsacrop-target').width(), $('#epsacrop-target').height());
++       Drupal.EPSACrop.presets[delta][preset] = c;
++     }
++   });
++ },
++ determineSize: function( c, width, height ) {
++   // Reduce cropping area (preserving ratio) if at least
++   // of the preset dimensions exceeds uploaded image size.
++   if (c.y2 > height && c.x2 > width) {
++     // Use the dimension that was reduced most and calculate the other.
++     if (height / c.y2 < width / c.x2) {
++       $ratio = c.x2/c.y2;
++       c.y2 = height;
++       c.x2 = Math.floor($ratio * c.y2);
++     }
++     else {
++       $ratio = c.y2/c.x2;
++       c.x2 = width;
++       c.y2 = Math.floor($ratio * c.x2);
++     }
++   }
++   else if (c.y2 > height) {
++     // If only height exceed the limit reduce it and calculate width.
++     $ratio = c.x2/c.y2;
++     c.y2 = height;
++     c.x2 = Math.floor($ratio * c.y2);
++   }
++   else if (c.x2 > width) {
++     // If only width exceed the limit reduce it and calculate height.
++     $ratio = c.y2/c.x2;
++     c.x2 = width;
++     c.y2 = Math.floor($ratio * c.x2);
++   }
++   c.w = c.x2;
++   c.h = c.y2;
++ },
+  crop: function( preset ) {
+     $('.epsacrop-presets-menu a').removeClass('selected');
+     $('.epsacrop-presets-menu a#'+preset).addClass('selected');
