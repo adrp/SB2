@@ -4,14 +4,14 @@
             // He doesn't calculate the scale with setSelect at the begining, so
             // I add animateTo after initate the API.
             Drupal.EPSACrop.api.animateTo(((typeof c == 'object') ? [c.x, c.y, c.x2, c.y2] : [0, 0, coords[0], coords[1]]));
-+           Drupal.EPSACrop.init(delta);
++           Drupal.EPSACrop.initialize(delta);
            }, 1000); // Sleep 1 second
         }catch(err) {
      	   alert(Drupal.t("Error on load : @error", {'@error': err.message}));
         }
      }); // fin load
   }, // dialog
-+ init: function ( delta ) {
++ initialize: function ( delta ) {
 +   // Init the crop settings so than when a user
 +   // hits save button without adjusting the area
 +   // those settings (visible for him) will be saved.
