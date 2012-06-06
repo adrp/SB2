@@ -1,0 +1,869 @@
+--- a/image_resize_filter.module
++++ b/image_resize_filter.module
+@@ -55,6 +55,9 @@ function image_resize_filter_filter($op, $delta = 0, $format = -1, $text = '', $
+       $settings['link'] = variable_get('image_resize_filter_link_' . $format, 0);
+       $settings['class'] = variable_get('image_resize_filter_link_class_' . $format, '');
+       $settings['rel'] = variable_get('image_resize_filter_link_rel_' . $format, '');
++      $settings['lim'] = variable_get('image_resize_filter_limit_max_size_' . $format, '');
++      $settings['limw'] = variable_get('image_resize_filter_max_width_' . $format, '');
++      $settings['limh'] = variable_get('image_resize_filter_max_height_' . $format, '');
+       $settings['image_locations'] = array_filter(variable_get('image_resize_filter_image_locations_' . $format, array('local')));
+       $images = image_resize_filter_get_images($settings, $text);
+       return $images ? image_resize_filter_process_images($images, $text, $settings) : $text;
+@@ -181,10 +184,51 @@ function image_resize_filter_form($format) {
+     '#default_value' => variable_get('image_resize_filter_link_rel_' . $format, ''),
+   );
+ 
++  $form['image_resize']['image_resize_filter_limit_max_size_' . $format] = array(
++    '#type' => 'checkbox',
++    '#title' => t('Limit the size of all images.'),
++    '#default_value' => variable_get('image_resize_filter_limit_max_size_' . $format, 0),
++    '#description' => t('Larger images will be scaled down to this size, disregarding the size attributes of the original image.'),
++  );
++
++  $form['image_resize']['image_resize_filter_max_width_' . $format] = array(
++    '#type' => 'textfield',
++    '#title' => t('Max image width'),
++    '#size' => '5',
++    '#default_value' => variable_get('image_resize_filter_max_width_' . $format, 400),
++  );
++
++  $form['image_resize']['image_resize_filter_max_height_' . $format] = array(
++    '#type' => 'textfield',
++    '#title' => t('Max image height'),
++    '#size' => '5',
++    '#default_value' => variable_get('image_resize_filter_max_height_' . $format, 600),
++  );
++  $form['#validate'][] = 'image_resize_filter_form_validate';
++
+   return $form;
+ }
+ 
+ /**
++ * Validate filter settings form.
++ */
++function image_resize_filter_form_validate($form, &$form_state) {
++  $format = $form['image_resize']['#format'];
++  $lim = $form_state['values']['image_resize_filter_limit_max_size_' . $format];
++  $height = $form_state['values']['image_resize_filter_max_height_' . $format];
++  $width = $form_state['values']['image_resize_filter_max_width_' . $format];
++  if ($lim && empty($height) && empty($width)) {
++    form_set_error('image_resize][image_resize_filter_limit_all_image_sizes_' . $format, t('At least one dimension must be set if you want to enable size limit.'));
++  }
++  if (!empty($height) && !is_numeric($height)) {
++    form_set_error('image_resize][image_resize_filter_max_height_' . $format, t('Height limit must be a number.'));
++  }
++  if (!empty($width) && !is_numeric($width)) {
++    form_set_error('image_resize][image_resize_filter_max_height_' . $format, t('Width limit must be a number.'));
++  }
++}
++
++/**
+  * Theme callback to theme the Image Resize Filter form.
+  */
+ function theme_image_resize_filter_form($form) {
+@@ -387,19 +431,7 @@ function image_resize_filter_get_images($settings, $text) {
+     $actual_width = (int) $image_size[0];
+     $actual_height = (int) $image_size[1];
+ 
+-    // If either height or width is missing, calculate the other.
+-    if (!$attributes['width'] && !$attributes['height']) {
+-      $attributes['width'] = $actual_width;
+-      $attributes['height'] = $actual_height;
+-    }
+-    if (!$attributes['height'] && is_numeric($attributes['width'])) {
+-      $ratio = $actual_height/$actual_width;
+-      $attributes['height'] = (int) round($ratio * $attributes['width']);
+-    }
+-    elseif (!$attributes['width'] && is_numeric($attributes['height'])) {
+-      $ratio = $actual_width/$actual_height;
+-      $attributes['width'] = (int) round($ratio * $attributes['height']);
+-    }
++    image_resize_filter_calculate_size($attributes, $settings, array('width' => $actual_width, 'height' => $actual_height));
+ 
+     // Determine if this image requires a resize.
+     if (!isset($resize)) {
+@@ -571,6 +603,14 @@ function image_resize_filter_image_tag($image = NULL, $settings = NULL) {
+   }
+   $image['attributes']['src'] = $src;
+ 
++  if (isset($image['attributes']['style']) && strpos($image['attributes']['style'], 'width') !== FALSE) {
++    $image['attributes']['style'] = preg_replace('/(width):\s*(\d+)([^d;]*)(;)?/i', "${1}:{$image['expected_size']['width']}px${4}", $image['attributes']['style']);
++  }
++
++  if (isset($image['attributes']['style']) && strpos($image['attributes']['style'], 'height') !== FALSE) {
++    $image['attributes']['style'] = preg_replace('/(height):\s*(\d+)([^d;]*)(;)?/i', "${1}:{$image['expected_size']['height']}px${4}", $image['attributes']['style']);
++  }
++
+   // Set the link properties if necessary.
+   $image['link'] = FALSE;
+   if ($image['resize'] && $settings['link'] && !$image['has_link']) {
+@@ -698,3 +738,73 @@ function image_resize_filter_pathinfo($path) {
+   }
+   return $info;
+ }
++
++/**
++ * Calculate image dimensions.
++ *
++ * @param $attributes
++ *   Array containing dimensions set by the user.
++ * @param $settings
++ *   Array containing filter settings (e.g. size limits).
++ * @param $actual
++ *   Array containing actual image dimensions.
++ */
++function image_resize_filter_calculate_size(&$attributes, $settings, $actual) {
++  if ($settings['lim'] && isset($attributes['height']) && is_numeric($attributes['height']) && isset($attributes['width']) && is_numeric($attributes['width'])) {
++    // Reduced if necessary and all dimensions are set properly.
++    image_resize_filter_resize_if_necessary($attributes, $settings, $actual);
++  }
++  else if ((!isset($attributes['width']) || !is_numeric($attributes['width'])) && (!isset($attributes['height']) || !is_numeric($attributes['height']))) {
++    // If no dimensions set use actual file size and resize if necessary.
++    $attributes['width'] = $actual['width'];
++    $attributes['height'] = $actual['height'];
++    image_resize_filter_resize_if_necessary($attributes, $settings, $actual);
++  }
++  elseif ((!isset($attributes['height']) || !is_numeric($attributes['height'])) && isset($attributes['width']) && is_numeric($attributes['width'])) {
++    // If only width set calculate height and resize if necessary.
++    $ratio = $actual['height']/$actual['width'];
++    $attributes['height'] = (int) round($ratio * $attributes['width']);
++    image_resize_filter_resize_if_necessary($attributes, $settings, $actual);
++  }
++  elseif ((!isset($attributes['width']) || !is_numeric($attributes['width'])) && isset($attributes['height']) && is_numeric($attributes['height'])) {
++    // If only height set calculate width and resize if necessary.
++    $ratio = $actual['width']/$actual['height'];
++    $attributes['width'] = (int) round($ratio * $attributes['height']);
++    image_resize_filter_resize_if_necessary($attributes, $settings, $actual);
++  }
++}
++
++/**
++ * Change image sizes if any of those exceed enabled limits.
++ */
++function image_resize_filter_resize_if_necessary(&$attributes, $settings, $actual) {
++  // If size limit turned off or values are wrong, the skip.
++  if (!$settings['lim'] || (!is_numeric($settings['limw']) && !is_numeric($settings['limh']))) return;
++
++  // If both dimensions exceed limit.
++  if (is_numeric($settings['limh']) && is_numeric($settings['limw']) && $attributes['height'] > $settings['limh'] && $attributes['width'] > $settings['limw']) {
++    // Use the dimension that was reduced most and calculate the other.
++    if ($settings['limh'] / $attributes['height'] < $settings['limw'] / $attributes['width']) {
++      $ratio = $attributes['width']/$attributes['height'];
++      $attributes['height'] = $settings['limh'];
++      $attributes['width'] = (int) round($ratio * $attributes['height']);
++    }
++    else {
++      $ratio = $attributes['height']/$attributes['width'];
++      $attributes['width'] = $settings['limw'];
++      $attributes['height'] = (int) round($ratio * $attributes['width']);
++    }
++  }
++  elseif (is_numeric($settings['limh']) && $attributes['height'] > $settings['limh']) {
++    // If only height exceed the limit reduce it and calculate width.
++    $ratio = $attributes['width']/$attributes['height'];
++    $attributes['height'] = $settings['limh'];
++    $attributes['width'] = (int) round($ratio * $attributes['height']);
++  }
++  elseif (is_numeric($settings['limw']) && $attributes['width'] > $settings['limw']) {
++    // If only width exceed the limit reduce it and calculate height.
++    $ratio = $attributes['height']/$attributes['width'];
++    $attributes['width'] = $settings['limw'];
++    $attributes['height'] = (int) round($ratio * $attributes['width']);
++  }
++}
+--- /dev/null
++++ b/tests/image_resize_filter_basic.test
+@@ -0,0 +1,692 @@
++<?php
++
++/**
++ * @file
++ * image_resize_filter module simpletest tests
++ *
++ * This file includes the defined tests for the image_resize_filter module.
++ *
++ * @ingroup image_resize_filter
++ */
++
++class ImageResizeFilterBasicTest extends DrupalWebTestCase {
++  protected $test_set;
++
++  /**
++   * Implementation of getInfo().
++   */
++  function getInfo() {
++    return array(
++      'name' => t('Image Resize Filter tests'),
++      'description' => t('Unit tests for the image_resize_filter module.'),
++      'group' => t('Image Resize Filter'),
++    );
++  }
++
++  /**
++   * Implementation of setUp().
++   */
++  function setUp() {
++    parent::setUp();
++    $this->test_set = array(
++      'set1' => array(
++        'input' => array(
++          'settings' => array(
++            'lim' => TRUE,
++            'limw' => 800,
++            'limh' => 600,
++          ),
++          'actual' => array(
++            'width' => 1024,
++            'height' => 768,
++          ),
++          'attributes' => array(
++            'width' => 700,
++          ),
++        ),
++        'output' => array(
++          'width' => 700,
++          'height' => (int) round(768/1024 * 700),
++        ),
++      ),
++      'set2' => array(
++        'input' => array(
++          'settings' => array(
++            'lim' => TRUE,
++            'limw' => 800,
++            'limh' => 600,
++          ),
++          'actual' => array(
++            'width' => 1024,
++            'height' => 768,
++          ),
++          'attributes' => array(
++            'width' => 900,
++          ),
++        ),
++        'output' => array(
++          'width' => 800,
++          'height' => (int) round(768/1024 * 800),
++        ),
++      ),
++      'set3' => array(
++        'input' => array(
++          'settings' => array(
++            'lim' => TRUE,
++            'limw' => 800,
++            'limh' => 600,
++          ),
++          'actual' => array(
++            'width' => 1024,
++            'height' => 768,
++          ),
++          'attributes' => array(
++            'height' => 500,
++          ),
++        ),
++        'output' => array(
++          'width' => (int) round(1024/768 * 500),
++          'height' => 500,
++        ),
++      ),
++      'set4' => array(
++        'input' => array(
++          'settings' => array(
++            'lim' => TRUE,
++            'limw' => 800,
++            'limh' => 600,
++          ),
++          'actual' => array(
++            'width' => 1024,
++            'height' => 768,
++          ),
++          'attributes' => array(
++            'height' => 700,
++          ),
++        ),
++        'output' => array(
++          'width' => (int) round(1024/768 * 600),
++          'height' => 600,
++        ),
++      ),
++      'set5' => array(
++        'input' => array(
++          'settings' => array(
++            'lim' => TRUE,
++            'limw' => 800,
++            'limh' => 600,
++          ),
++          'actual' => array(
++            'width' => 1024,
++            'height' => 768,
++          ),
++          'attributes' => array(
++            'width' => 900,
++            'height' => 450,
++          ),
++        ),
++        'output' => array(
++          'width' => 800,
++          'height' => (int) round(450/900 * 800),
++        ),
++      ),
++      'set6' => array(
++        'input' => array(
++          'settings' => array(
++            'lim' => TRUE,
++            'limw' => 800,
++            'limh' => 600,
++          ),
++          'actual' => array(
++            'width' => 1024,
++            'height' => 768,
++          ),
++          'attributes' => array(
++            'width' => 700,
++            'height' => 700,
++          ),
++        ),
++        'output' => array(
++          'width' => (int) round(700/700 * 600),
++          'height' => 600,
++        ),
++      ),
++      'set7' => array(
++        'input' => array(
++          'settings' => array(
++            'lim' => TRUE,
++            'limw' => 800,
++            'limh' => 600,
++          ),
++          'actual' => array(
++            'width' => 1024,
++            'height' => 768,
++          ),
++          'attributes' => array(
++            'width' => 900,
++            'height' => 700,
++          ),
++        ),
++        'output' => array(
++          'width' => (int) round(900/700 * 600),
++          'height' => 600,
++        ),
++      ),
++      'set8' => array(
++        'input' => array(
++          'settings' => array(
++            'lim' => TRUE,
++            'limw' => 800,
++            'limh' => 600,
++          ),
++          'actual' => array(
++            'width' => 1024,
++            'height' => 768,
++          ),
++          'attributes' => array(
++            'width' => 1000,
++            'height' => 700,
++          ),
++        ),
++        'output' => array(
++          'width' => 800,
++          'height' => (int) round(700/1000 * 800),
++        ),
++      ),
++      'set9' => array(
++        'input' => array(
++          'settings' => array(
++            'lim' => TRUE,
++            'limw' => 800,
++            'limh' => 600,
++          ),
++          'actual' => array(
++            'width' => 1024,
++            'height' => 512,
++          ),
++          'attributes' => array(
++          ),
++        ),
++        'output' => array(
++          'width' => 800,
++          'height' => (int) round(512/1024 * 800),
++        ),
++      ),
++      'set10' => array(
++        'input' => array(
++          'settings' => array(
++            'lim' => TRUE,
++            'limw' => 800,
++            'limh' => 600,
++          ),
++          'actual' => array(
++            'width' => 700,
++            'height' => 700,
++          ),
++          'attributes' => array(
++          ),
++        ),
++        'output' => array(
++          'width' => (int) round(700/700 * 600),
++          'height' => 600,
++        ),
++      ),
++      'set11' => array(
++        'input' => array(
++          'settings' => array(
++            'lim' => TRUE,
++            'limw' => 800,
++            'limh' => 600,
++          ),
++          'actual' => array(
++            'width' => 900,
++            'height' => 700,
++          ),
++          'attributes' => array(
++          ),
++        ),
++        'output' => array(
++          'width' => (int) round(900/700 * 600),
++          'height' => 600,
++        ),
++      ),
++      'set12' => array(
++        'input' => array(
++          'settings' => array(
++            'lim' => TRUE,
++            'limw' => 800,
++            'limh' => 600,
++          ),
++          'actual' => array(
++            'width' => 1000,
++            'height' => 700,
++          ),
++          'attributes' => array(
++          ),
++        ),
++        'output' => array(
++          'width' => 800,
++          'height' => (int) round(700/1000 * 800),
++        ),
++      ),
++      'set13' => array(
++        'input' => array(
++          'settings' => array(
++            'lim' => FALSE,
++            'limw' => 800,
++            'limh' => 600,
++          ),
++          'actual' => array(
++            'width' => 1024,
++            'height' => 768,
++          ),
++          'attributes' => array(
++            'width' => 700,
++          ),
++        ),
++        'output' => array(
++          'width' => 700,
++          'height' => (int) round(768/1024 * 700),
++        ),
++      ),
++      'set14' => array(
++        'input' => array(
++          'settings' => array(
++            'lim' => FALSE,
++            'limw' => 800,
++            'limh' => 600,
++          ),
++          'actual' => array(
++            'width' => 1024,
++            'height' => 768,
++          ),
++          'attributes' => array(
++            'width' => 900,
++          ),
++        ),
++        'output' => array(
++          'width' => 900,
++          'height' => (int) round(768/1024 * 900),
++        ),
++      ),
++      'set15' => array(
++        'input' => array(
++          'settings' => array(
++            'lim' => FALSE,
++            'limw' => 800,
++            'limh' => 600,
++          ),
++          'actual' => array(
++            'width' => 1024,
++            'height' => 768,
++          ),
++          'attributes' => array(
++            'height' => 500,
++          ),
++        ),
++        'output' => array(
++          'width' => (int) round(1024/768 * 500),
++          'height' => 500,
++        ),
++      ),
++      'set16' => array(
++        'input' => array(
++          'settings' => array(
++            'lim' => FALSE,
++            'limw' => 800,
++            'limh' => 600,
++          ),
++          'actual' => array(
++            'width' => 1024,
++            'height' => 768,
++          ),
++          'attributes' => array(
++            'height' => 700,
++          ),
++        ),
++        'output' => array(
++          'width' => (int) round(1024/768 * 700),
++          'height' => 700,
++        ),
++      ),
++      'set17' => array(
++        'input' => array(
++          'settings' => array(
++            'lim' => FALSE,
++            'limw' => 800,
++            'limh' => 600,
++          ),
++          'actual' => array(
++            'width' => 1024,
++            'height' => 768,
++          ),
++          'attributes' => array(
++            'width' => 900,
++            'height' => 450,
++          ),
++        ),
++        'output' => array(
++          'width' => 900,
++          'height' => (int) round(450/900 * 900),
++        ),
++      ),
++      'set18' => array(
++        'input' => array(
++          'settings' => array(
++            'lim' => FALSE,
++            'limw' => 800,
++            'limh' => 600,
++          ),
++          'actual' => array(
++            'width' => 1024,
++            'height' => 768,
++          ),
++          'attributes' => array(
++            'width' => 700,
++            'height' => 700,
++          ),
++        ),
++        'output' => array(
++          'width' => (int) round(700/700 * 700),
++          'height' => 700,
++        ),
++      ),
++      'set19' => array(
++        'input' => array(
++          'settings' => array(
++            'lim' => FALSE,
++            'limw' => 800,
++            'limh' => 600,
++          ),
++          'actual' => array(
++            'width' => 1024,
++            'height' => 768,
++          ),
++          'attributes' => array(
++            'width' => 900,
++            'height' => 700,
++          ),
++        ),
++        'output' => array(
++          'width' => (int) round(900/700 * 700),
++          'height' => 700,
++        ),
++      ),
++      'set20' => array(
++        'input' => array(
++          'settings' => array(
++            'lim' => FALSE,
++            'limw' => 800,
++            'limh' => 600,
++          ),
++          'actual' => array(
++            'width' => 1024,
++            'height' => 768,
++          ),
++          'attributes' => array(
++            'width' => 1000,
++            'height' => 700,
++          ),
++        ),
++        'output' => array(
++          'width' => 1000,
++          'height' => (int) round(700/1000 * 1000),
++        ),
++      ),
++      'set21' => array(
++        'input' => array(
++          'settings' => array(
++            'lim' => FALSE,
++            'limw' => 800,
++            'limh' => 600,
++          ),
++          'actual' => array(
++            'width' => 1024,
++            'height' => 512,
++          ),
++          'attributes' => array(
++          ),
++        ),
++        'output' => array(
++          'width' => 1024,
++          'height' => (int) round(512/1024 * 1024),
++        ),
++      ),
++      'set22' => array(
++        'input' => array(
++          'settings' => array(
++            'lim' => FALSE,
++            'limw' => 800,
++            'limh' => 600,
++          ),
++          'actual' => array(
++            'width' => 700,
++            'height' => 700,
++          ),
++          'attributes' => array(
++          ),
++        ),
++        'output' => array(
++          'width' => (int) round(700/700 * 700),
++          'height' => 700,
++        ),
++      ),
++      'set23' => array(
++        'input' => array(
++          'settings' => array(
++            'lim' => FALSE,
++            'limw' => 800,
++            'limh' => 600,
++          ),
++          'actual' => array(
++            'width' => 900,
++            'height' => 700,
++          ),
++          'attributes' => array(
++          ),
++        ),
++        'output' => array(
++          'width' => (int) round(900/700 * 700),
++          'height' => 700,
++        ),
++      ),
++      'set24' => array(
++        'input' => array(
++          'settings' => array(
++            'lim' => FALSE,
++            'limw' => 800,
++            'limh' => 600,
++          ),
++          'actual' => array(
++            'width' => 1000,
++            'height' => 700,
++          ),
++          'attributes' => array(
++          ),
++        ),
++        'output' => array(
++          'width' => 1000,
++          'height' => (int) round(700/1000 * 1000),
++        ),
++      ),
++      'set25' => array(
++        'input' => array(
++          'settings' => array(
++            'lim' => TRUE,
++            'limw' => 600,
++            'limh' => 1000,
++          ),
++          'actual' => array(
++            'width' => 1024,
++            'height' => 768,
++          ),
++          'attributes' => array(
++            'height' => 768,
++          ),
++        ),
++        'output' => array(
++          'width' => 600,
++          'height' => (int) round(768/1024 * 600),
++        ),
++      ),
++      'set26' => array(
++        'input' => array(
++          'settings' => array(
++            'lim' => TRUE,
++            'limw' => '',
++            'limh' => 600,
++          ),
++          'actual' => array(
++            'width' => 1024,
++            'height' => 768,
++          ),
++          'attributes' => array(
++            'width' => 700,
++          ),
++        ),
++        'output' => array(
++          'width' => 700,
++          'height' => (int) round(768/1024 * 700),
++        ),
++      ),
++      'set27' => array(
++        'input' => array(
++          'settings' => array(
++            'lim' => TRUE,
++            'limw' => 800,
++            'limh' => '',
++          ),
++          'actual' => array(
++            'width' => 1024,
++            'height' => 768,
++          ),
++          'attributes' => array(
++            'width' => 900,
++          ),
++        ),
++        'output' => array(
++          'width' => 800,
++          'height' => (int) round(768/1024 * 800),
++        ),
++      ),
++      'set28' => array(
++        'input' => array(
++          'settings' => array(
++            'lim' => TRUE,
++            'limw' => 800,
++            'limh' => '',
++          ),
++          'actual' => array(
++            'width' => 1024,
++            'height' => 768,
++          ),
++          'attributes' => array(
++            'height' => 500,
++          ),
++        ),
++        'output' => array(
++          'width' => (int) round(1024/768 * 500),
++          'height' => 500,
++        ),
++      ),
++      'set29' => array(
++        'input' => array(
++          'settings' => array(
++            'lim' => TRUE,
++            'limw' => '',
++            'limh' => 600,
++          ),
++          'actual' => array(
++            'width' => 1024,
++            'height' => 768,
++          ),
++          'attributes' => array(
++            'height' => 700,
++          ),
++        ),
++        'output' => array(
++          'width' => (int) round(1024/768 * 600),
++          'height' => 600,
++        ),
++      ),
++      'set30' => array(
++        'input' => array(
++          'settings' => array(
++            'lim' => TRUE,
++            'limw' => '',
++            'limh' => 600,
++          ),
++          'actual' => array(
++            'width' => 1024,
++            'height' => 768,
++          ),
++          'attributes' => array(
++            'width' => 700,
++            'height' => 700,
++          ),
++        ),
++        'output' => array(
++          'width' => (int) round(700/700 * 600),
++          'height' => 600,
++        ),
++      ),
++      'set31' => array(
++        'input' => array(
++          'settings' => array(
++            'lim' => TRUE,
++            'limw' => 800,
++            'limh' => '',
++          ),
++          'actual' => array(
++            'width' => 1024,
++            'height' => 512,
++          ),
++          'attributes' => array(
++          ),
++        ),
++        'output' => array(
++          'width' => 800,
++          'height' => (int) round(512/1024 * 800),
++        ),
++      ),
++      'set32' => array(
++        'input' => array(
++          'settings' => array(
++            'lim' => TRUE,
++            'limw' => '',
++            'limh' => 600,
++          ),
++          'actual' => array(
++            'width' => 700,
++            'height' => 700,
++          ),
++          'attributes' => array(
++          ),
++        ),
++        'output' => array(
++          'width' => (int) round(700/700 * 600),
++          'height' => 600,
++        ),
++      ),
++    );
++  }
++
++  function testImageResizeFilterSizeCalculation() {
++    foreach ($this->test_set as $name => $test) {
++      if (isset($test['input']['attributes']['width']) && isset($test['input']['attributes']['height'])) {
++        $attributes_ratio = $test['input']['attributes']['width'] / $test['input']['attributes']['height'];
++      }
++      else {
++        $attributes_ratio = 'none';
++      }
++
++      image_resize_filter_calculate_size($test['input']['attributes'], $test['input']['settings'], $test['input']['actual'], $log, $prefix);
++
++      $actual_ratio = $test['input']['actual']['width'] / $test['input']['actual']['height'];
++      $output_ratio = $test['output']['width'] / $test['output']['height'];
++
++      $this->assertEqual($test['input']['attributes']['width'], $test['output']['width'], t("$name: calculate width equals expected value."));
++      $this->assertEqual($test['input']['attributes']['height'], $test['output']['height'], t("$name: calculate height equals expected value."));
++    }
++  }
++}
