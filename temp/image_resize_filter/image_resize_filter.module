@@ -55,6 +55,9 @@ function image_resize_filter_filter($op, $delta = 0, $format = -1, $text = '', $
       $settings['link'] = variable_get('image_resize_filter_link_' . $format, 0);
       $settings['class'] = variable_get('image_resize_filter_link_class_' . $format, '');
       $settings['rel'] = variable_get('image_resize_filter_link_rel_' . $format, '');
+      $settings['lim'] = variable_get('image_resize_filter_limit_max_size_' . $format, '');
+      $settings['limw'] = variable_get('image_resize_filter_max_width_' . $format, '');
+      $settings['limh'] = variable_get('image_resize_filter_max_height_' . $format, '');
       $settings['image_locations'] = array_filter(variable_get('image_resize_filter_image_locations_' . $format, array('local')));
       $images = image_resize_filter_get_images($settings, $text);
       return $images ? image_resize_filter_process_images($images, $text, $settings) : $text;
@@ -181,7 +184,48 @@ function image_resize_filter_form($format) {
     '#default_value' => variable_get('image_resize_filter_link_rel_' . $format, ''),
   );
 
+  $form['image_resize']['image_resize_filter_limit_max_size_' . $format] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Limit the size of all images.'),
+    '#default_value' => variable_get('image_resize_filter_limit_max_size_' . $format, 0),
+    '#description' => t('Larger images will be scaled down to this size, disregarding the size attributes of the original image.'),
+  );
+
+  $form['image_resize']['image_resize_filter_max_width_' . $format] = array(
+    '#type' => 'textfield',
+    '#title' => t('Max image width'),
+    '#size' => '5',
+    '#default_value' => variable_get('image_resize_filter_max_width_' . $format, 400),
+  );
+
+  $form['image_resize']['image_resize_filter_max_height_' . $format] = array(
+    '#type' => 'textfield',
+    '#title' => t('Max image height'),
+    '#size' => '5',
+    '#default_value' => variable_get('image_resize_filter_max_height_' . $format, 600),
+  );
+  $form['#validate'][] = 'image_resize_filter_form_validate';
+
   return $form;
+}
+
+/**
+ * Validate filter settings form.
+ */
+function image_resize_filter_form_validate($form, &$form_state) {
+  $format = $form['image_resize']['#format'];
+  $lim = $form_state['values']['image_resize_filter_limit_max_size_' . $format];
+  $height = $form_state['values']['image_resize_filter_max_height_' . $format];
+  $width = $form_state['values']['image_resize_filter_max_width_' . $format];
+  if ($lim && empty($height) && empty($width)) {
+    form_set_error('image_resize][image_resize_filter_limit_all_image_sizes_' . $format, t('At least one dimension must be set if you want to enable size limit.'));
+  }
+  if (!empty($height) && !is_numeric($height)) {
+    form_set_error('image_resize][image_resize_filter_max_height_' . $format, t('Height limit must be a number.'));
+  }
+  if (!empty($width) && !is_numeric($width)) {
+    form_set_error('image_resize][image_resize_filter_max_height_' . $format, t('Width limit must be a number.'));
+  }
 }
 
 /**
@@ -387,19 +431,7 @@ function image_resize_filter_get_images($settings, $text) {
     $actual_width = (int) $image_size[0];
     $actual_height = (int) $image_size[1];
 
-    // If either height or width is missing, calculate the other.
-    if (!$attributes['width'] && !$attributes['height']) {
-      $attributes['width'] = $actual_width;
-      $attributes['height'] = $actual_height;
-    }
-    if (!$attributes['height'] && is_numeric($attributes['width'])) {
-      $ratio = $actual_height/$actual_width;
-      $attributes['height'] = (int) round($ratio * $attributes['width']);
-    }
-    elseif (!$attributes['width'] && is_numeric($attributes['height'])) {
-      $ratio = $actual_width/$actual_height;
-      $attributes['width'] = (int) round($ratio * $attributes['height']);
-    }
+    image_resize_filter_calculate_size($attributes, $settings, array('width' => $actual_width, 'height' => $actual_height));
 
     // Determine if this image requires a resize.
     if (!isset($resize)) {
@@ -571,6 +603,14 @@ function image_resize_filter_image_tag($image = NULL, $settings = NULL) {
   }
   $image['attributes']['src'] = $src;
 
+  if (isset($image['attributes']['style']) && strpos($image['attributes']['style'], 'width') !== FALSE) {
+    $image['attributes']['style'] = preg_replace('/(width):\s*(\d+)([^d;]*)(;)?/i', "${1}:{$image['expected_size']['width']}px${4}", $image['attributes']['style']);
+  }
+
+  if (isset($image['attributes']['style']) && strpos($image['attributes']['style'], 'height') !== FALSE) {
+    $image['attributes']['style'] = preg_replace('/(height):\s*(\d+)([^d;]*)(;)?/i', "${1}:{$image['expected_size']['height']}px${4}", $image['attributes']['style']);
+  }
+
   // Set the link properties if necessary.
   $image['link'] = FALSE;
   if ($image['resize'] && $settings['link'] && !$image['has_link']) {
@@ -697,4 +737,74 @@ function image_resize_filter_pathinfo($path) {
     $info['filename'] = basename($path, '.' . $info['extension']);
   }
   return $info;
+}
+
+/**
+ * Calculate image dimensions.
+ *
+ * @param $attributes
+ *   Array containing dimensions set by the user.
+ * @param $settings
+ *   Array containing filter settings (e.g. size limits).
+ * @param $actual
+ *   Array containing actual image dimensions.
+ */
+function image_resize_filter_calculate_size(&$attributes, $settings, $actual) {
+  if ($settings['lim'] && isset($attributes['height']) && is_numeric($attributes['height']) && isset($attributes['width']) && is_numeric($attributes['width'])) {
+    // Reduced if necessary and all dimensions are set properly.
+    image_resize_filter_resize_if_necessary($attributes, $settings, $actual);
+  }
+  else if ((!isset($attributes['width']) || !is_numeric($attributes['width'])) && (!isset($attributes['height']) || !is_numeric($attributes['height']))) {
+    // If no dimensions set use actual file size and resize if necessary.
+    $attributes['width'] = $actual['width'];
+    $attributes['height'] = $actual['height'];
+    image_resize_filter_resize_if_necessary($attributes, $settings, $actual);
+  }
+  elseif ((!isset($attributes['height']) || !is_numeric($attributes['height'])) && isset($attributes['width']) && is_numeric($attributes['width'])) {
+    // If only width set calculate height and resize if necessary.
+    $ratio = $actual['height']/$actual['width'];
+    $attributes['height'] = (int) round($ratio * $attributes['width']);
+    image_resize_filter_resize_if_necessary($attributes, $settings, $actual);
+  }
+  elseif ((!isset($attributes['width']) || !is_numeric($attributes['width'])) && isset($attributes['height']) && is_numeric($attributes['height'])) {
+    // If only height set calculate width and resize if necessary.
+    $ratio = $actual['width']/$actual['height'];
+    $attributes['width'] = (int) round($ratio * $attributes['height']);
+    image_resize_filter_resize_if_necessary($attributes, $settings, $actual);
+  }
+}
+
+/**
+ * Change image sizes if any of those exceed enabled limits.
+ */
+function image_resize_filter_resize_if_necessary(&$attributes, $settings, $actual) {
+  // If size limit turned off or values are wrong, the skip.
+  if (!$settings['lim'] || (!is_numeric($settings['limw']) && !is_numeric($settings['limh']))) return;
+
+  // If both dimensions exceed limit.
+  if (is_numeric($settings['limh']) && is_numeric($settings['limw']) && $attributes['height'] > $settings['limh'] && $attributes['width'] > $settings['limw']) {
+    // Use the dimension that was reduced most and calculate the other.
+    if ($settings['limh'] / $attributes['height'] < $settings['limw'] / $attributes['width']) {
+      $ratio = $attributes['width']/$attributes['height'];
+      $attributes['height'] = $settings['limh'];
+      $attributes['width'] = (int) round($ratio * $attributes['height']);
+    }
+    else {
+      $ratio = $attributes['height']/$attributes['width'];
+      $attributes['width'] = $settings['limw'];
+      $attributes['height'] = (int) round($ratio * $attributes['width']);
+    }
+  }
+  elseif (is_numeric($settings['limh']) && $attributes['height'] > $settings['limh']) {
+    // If only height exceed the limit reduce it and calculate width.
+    $ratio = $attributes['width']/$attributes['height'];
+    $attributes['height'] = $settings['limh'];
+    $attributes['width'] = (int) round($ratio * $attributes['height']);
+  }
+  elseif (is_numeric($settings['limw']) && $attributes['width'] > $settings['limw']) {
+    // If only width exceed the limit reduce it and calculate height.
+    $ratio = $attributes['height']/$attributes['width'];
+    $attributes['width'] = $settings['limw'];
+    $attributes['height'] = (int) round($ratio * $attributes['width']);
+  }
 }
