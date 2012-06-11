@@ -1,0 +1,13 @@
+name = "Single CCK field value viewer"
+package = "CCK"
+project = "single_field_viewer"
+version = "6.x-1.0"
+core = 6.x
+description = "This module allows to display single CCK field value at separate pages. It could be helpfull if we need to make some SEO optimizations and dont need to create zillions of node like images or videos."
+
+; Information added by drupal.org packaging script on 2012-01-06
+version = "6.x-1.1"
+core = "6.x"
+project = "single_field_viewer"
+datestamp = "1325882743"
+

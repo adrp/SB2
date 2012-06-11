@@ -1,0 +1,554 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * This file includes all global visible hooks implementation
+ *
+ * This module allows to generate view of single imagefield value
+ */
+
+/**
+ * Implementation of hook_pathauto()
+ *
+ * This implementation adds support for single field viewer enabled fields.
+ */
+function single_field_viewer_pathauto($op) {
+  switch ($op) {
+    case 'settings':
+      $settings = array();
+      $settings['module'] = 'single_field_viewer';
+      $settings['token_type'] = 'node';
+      $settings['groupheader'] = t('Single field viewer defaults');
+      $settings['patterndescr'] = t('Default path pattern (applies to all node types and fields)');
+      $settings['patterndefault'] = t('single-field/[title-raw]/');
+      $settings['bulkname'] = t('Bulk generate aliases for fields that are not aliased');
+      $settings['bulkdescr'] = t('Generate aliases for all existing fields values which do not already have aliases.');
+
+      $patterns = token_get_list('node');
+      foreach ($patterns as $type => $pattern_set) {
+        if ($type != 'global') {
+          foreach ($pattern_set as $pattern => $description) {
+            $settings['placeholders']['['. $pattern .']'] = $description;
+          }
+        }
+      }
+
+      if (module_exists('locale')) {
+        $languages = array('' => t('Language neutral')) + locale_language_list('name');
+      }
+      else {
+        $languages = array();
+      }
+      foreach (node_get_types('names') as $node_type => $node_name) {
+        $single_fields_names = variable_get(
+          'single_field_viewer_'. $node_type,
+          array()
+        );
+
+        foreach ($single_fields_names as $field_name) {
+          if (
+            variable_get('language_content_type_'. $node_type, 0) &&
+            count($languages)
+          ) {
+            $settings['patternitems'][$node_type .'_'. $field_name] =
+              t('Default path pattern for @node_type (applies to all @node_type:@field_name  with blank patterns below)',
+              array('@node_type' => $node_name, '@field_name' => $field_name)
+            );
+
+            foreach ($languages as $lang_code => $lang_name) {
+              if (!empty($lang_code)) {
+                $settings['patternitems'][$node_type .'_'. $field_name  .'_'. $lang_code] =
+                t('Pattern for all @node_type:@field_name paths in @language',
+                array('@node_type' => $node_name, '@language' => $lang_name, '@field_name' => $field_name));
+              }
+              else {
+                $settings['patternitems'][$node_type .'_'. $field_name  .'_'. $lang_code] =
+                t('Pattern for all language neutral @node_type:@field_name  paths',
+                array('@node_type' => $node_name, '@field_name' => $field_name));
+              }
+            }
+          }
+          else {
+            $settings['patternitems'][$node_type .'_'. $field_name] =
+            t('Pattern for all @node_type:@field_name  paths',
+            array('@node_type' => $node_name, '@field_name' => $field_name));
+          }
+        }
+      }
+      return (object) $settings;
+      break;
+    case '':
+      break;
+  }
+}
+
+
+function single_field_viewer_pathauto_bulkupdate() {
+  // From all single_field_viewer types, only attempt to update those with patterns
+  $pattern_types = array();
+  $count = 0;
+
+
+
+  foreach (node_get_types('types') as $type) {
+    $single_fields = variable_get(
+      'single_field_viewer_'. $type->type,
+      array()
+    );
+
+
+    foreach ($single_fields as $field_name) {
+      $field = content_fields($field_name, $type->type);
+      $database_info = content_database_info($field);
+
+      //detect aliases
+      $query = (
+        "SELECT DISTINCT nid FROM {{$database_info['table']}} cck_table ".
+        "LEFT JOIN {url_alias} ua ON CONCAT('node/', CAST(cck_table.nid AS CHAR), '/field/', '%s', '/', CAST(cck_table.delta AS CHAR)) = ua.src ".
+        "WHERE ua.src IS NULL"
+      );
+
+      $results = db_query_range($query, $field_name,  0, variable_get('pathauto_max_bulk_update', 50));
+
+
+      while (($ref = db_fetch_array($results)) && $count++ < variable_get('pathauto_max_bulk_update', 50)) {
+        $node = node_load($ref['nid']);
+        _single_field_viewer_pathauto_update($node, 'update');
+      }
+
+    }
+
+  }
+
+  drupal_set_message(format_plural($count,
+    'Bulk generation of single_field_viewers completed, one alias generated.',
+    'Bulk generation of single_field_viewers completed, @count aliases generated.'));
+}
+
+
+
+/**
+ * Implementation of delete op of nodeapi
+ *
+ *
+ * @see single_field_viewer_nodeapi
+ * @param stdClass $node
+ *   Node object passed to nodeapi function call
+ *
+ * @param string $op
+ * 	Operation. This should be always "delete". Unused in implementation
+ */
+function _single_field_viewer_pathauto_delete($node, $op) {
+  $single_fields_names = variable_get(
+      'single_field_viewer_'. $node->type,
+      array()
+    );
+
+  //for each field from this node unset url_alias row
+  foreach ($single_fields_names as $field_name) {
+    foreach ($node->{$field_name} as $delta => $value) {
+      path_set_alias("node/{$node->nid}/field/{$field_name}/{$delta}");
+    }
+  }
+}
+
+
+/**
+ * Implementation of update/insert nodeapi operations for single field viewer
+ *
+ * This implementation simple adds / replace url alias for each field enabled
+ * to be single field viewer field.
+ *
+ * @param stdClass $node
+ *   Node object passed to nodeapi function call
+ *
+ * @param string $op
+ * 	Could be insert or update. Currently not used in implementation, passed
+ * from nodeapi function call
+ */
+function _single_field_viewer_pathauto_update($node, $op) {
+  xdebug_break();
+  if (variable_get('selective_pathauto_blockade', TRUE)) {
+    _pathauto_include();
+
+    $single_fields_names = variable_get(
+      'single_field_viewer_'. $node->type,
+      array()
+    );
+    foreach ($single_fields_names as $field_name) {
+      // Get the specific pattern or the default
+      if (variable_get('language_content_type_'. $node->type, 0)) {
+        $pattern = trim(variable_get('pathauto_single_field_viewer_'. $node->type .'_'. $field_name .'_'. $node->language .'_pattern', FALSE));
+      }
+      if (empty($pattern)) {
+        $pattern = trim(variable_get('pathauto_single_field_viewer_'. $node->type  .'_'. $field_name .'_pattern', FALSE));
+        if (empty($pattern)) {
+          $pattern = trim(variable_get('pathauto_single_field_viewer_pattern', FALSE));
+        }
+      }
+
+      // Only do work if there's a pattern
+      if ($pattern) {
+        foreach ($node->{$field_name} as $delta => $value) {
+
+          // Only create an alias if the checkbox was not provided or if the checkbox was provided and is checked
+          // There was a few additional arguments to check in the if below.
+          // They could be usefull in migration process but I've removed
+          // them as they seemed redudant:
+          // # if ( !is_null($value) && (TRUE || !isset($node->pathauto_perform_alias) || $node->pathauto_perform_alias)) {
+          if (!is_null($value)) {
+            $placeholders = pathauto_get_placeholders('node', $node);
+
+            //add placeholders for current cck field to pathauto placeholders
+            $tokens = _single_field_viewer_token_value_generate(
+              $node,
+              $field_name,
+              $delta
+            );
+
+            foreach ($tokens as $token => $value) {
+              $placeholders['tokens'][] = "[{$token}]";
+              $placeholders['values'][] = $value;
+            }
+
+            $src = "node/{$node->nid}/field/{$field_name}/{$delta}";
+            $alias = pathauto_create_alias(
+              'single_field_viewer',
+              $op,
+              $placeholders,
+              $src,
+              $node->nid,
+              $node->type .'_'. $field_name,
+              $node->language
+            );
+          }
+        }
+      }
+    }
+  }
+}
+
+
+/**
+ * Implementation of hook_nodeapi().
+ *
+ * This implementation adds support for pathatuto links creation.
+ */
+function single_field_viewer_nodeapi(&$node, $op, $teaser, $page) {
+  switch ($op) {
+    case 'insert':
+    case 'update':
+      if (module_exists('pathauto')) {
+        _single_field_viewer_pathauto_update($node, $op);
+      }
+      break;
+    case 'delete':
+      if (module_exists('pathauto')) {
+        _single_field_viewer_pathauto_delete($node, $op);
+      }
+      break;
+  }
+}
+
+/**
+ * Implementation of token_values()
+ */
+function  single_field_viewer_token_values($type, $object = NULL, $options = array()) {
+  if ($type == 'node') {
+    $tokens = array();
+    if (is_numeric(arg(4))) {
+      $tokens['single_field_viewer_field_delta'] = arg(4);
+      $tokens['single_field_viewer_field_name'] = filter_xss(arg(3));
+      $field_name = $tokens['single_field_viewer_field_name'];
+    }
+
+    $tokens = array_merge(
+      $tokens,
+      _single_field_viewer_token_value_generate(
+        $object,
+        isset($tokens['single_field_viewer_field_name']) ? $tokens['single_field_viewer_field_name'] : NULL,
+        isset($tokens['single_field_viewer_field_delta']) ? $tokens['single_field_viewer_field_delta'] : NULL
+      )
+    );
+    return $tokens;
+  }
+}
+
+
+function _single_field_viewer_token_value_generate($node, $field_name, $delta) {
+  $token = array(
+    'single_field_viewer_field_delta' => $delta,
+    'single_field_viewer_field_name' => $field_name
+  );
+
+  $field_info = content_fields();
+  $module = isset($field_info[$field_name]) ?
+    $field_info[$field_name]['module'] :
+    NULL;
+
+  drupal_alter(
+    'single_field_viewer_token_values',
+    $token, $module, $node, $field_name, $delta
+  );
+
+
+  return $token;
+}
+
+
+
+/**
+ * Implementation of hook_single_field_viewer_token_values_alter().
+ */
+function single_field_viewer_single_field_viewer_token_values_alter(
+  &$tokens,  $module, $node, $field_name, $delta) {
+
+  //get field value
+  if (
+    isset($node->{$field_name}) &&
+    is_array($node->{$field_name}) &&
+    isset($node->{$field_name}[$delta])
+  ) {
+    $field_value = $node->{$field_name}[$delta];
+  }
+
+  //we successfully retrieved field value
+  if (isset($field_value)) {
+    switch ($module) {
+      case 'emvideo':
+        $data = $field_value;
+        break;
+      case 'filefield':
+      case 'imagefield':
+        $data = $field_value['data'];
+        break;
+    }
+
+    if (is_array($data)) {
+      $tokens['single_field_viewer_data_title'] = $data['title'];
+      $tokens['single_field_viewer_data_title-words'] = str_replace(array(' ', '.'), array(',', ''), $data['title']);
+      $tokens['single_field_viewer_data_description'] = $data['description'];
+    }
+  }
+}
+
+
+/**
+ * Implementation of hook_token_list()
+ */
+function single_field_viewer_token_list($type = 'all') {
+  if ($type == 'node' || $type == 'all') {
+    return array(
+      	'node' => array(
+        'single_field_viewer_field_delta' => t(
+          'single_field_value: Delta of displayed CCK field value'
+        ),
+        'single_field_viewer_field_name' => t(
+          'single_field_value: Delta of displayed CCK field name'
+        ),
+        'single_field_viewer_data_title' => t(
+          'single_field_value: Title value of current displayed CCK data field'
+        ),
+        'single_field_viewer_data_title-words' => t(
+          'single_field_value: Title value of current displayed CCK data field, words separated by commas'
+        ),
+        'single_field_viewer_data_description' => t(
+          'single_field_value: Description value of current displayed CCK data field'
+        )
+      )
+    );
+  }
+}
+
+/**
+ *
+ * Implementation of hook_menu().
+ *
+ * This implementation registers only one callback
+ * for single view of fields.
+ */
+function single_field_viewer_menu() {
+  return array(
+    'node/%node/field/%/%' => array(
+      'type' => MENU_CALLBACK,
+      'page callback' => 'single_field_viewer_page_callback',
+      'page arguments' => array(1, 3, 4),
+      'access callback' => 'single_field_viewer_access_callback',
+      'access arguments' => array(1, 3, 4),
+      'file' => 'single_field_viewer.pages.inc'
+    )
+  );
+}
+
+
+/**
+ * Implementation of access callback for single_field_viewer_page_callback
+ *
+ * @param stdClass $node
+ *   Node object, parent of displayed field
+ * @param string $field_name
+ *   Field name. We want to display element from these field.
+ * @return bool
+ *   return value of access check
+ *
+ * @see single_field_viewer_menu
+ */
+function single_field_viewer_access_callback($node, $field_name, $delta) {
+  // If setting is on, refuse access to the first item in the field.
+  $field_block_settings = variable_get(
+    'single_field_viewer_block_first_'. $node->type,
+         array()
+    );
+  // Prepare a nicer array.
+  $field_block_settings = array_combine(
+      array_values($field_block_settings),
+      array_values($field_block_settings)
+    );
+
+  if (isset($field_block_settings[$field_name])) {
+    if($delta == 0) {
+      return FALSE;
+    }
+  }
+
+  $single_field_viewer_settings = array_filter(
+    variable_get(
+      'single_field_viewer_'. $node->type,
+      array()
+    )
+  );
+
+  //make this in form key => key, to make access logic easier.
+  $single_field_viewer_settings = array_combine(
+    $single_field_viewer_settings,
+    $single_field_viewer_settings
+  );
+
+
+  //we need to have access to parent of field and
+  //field single view has to be enabled at node type
+  //settings
+  return
+    node_access('view', $node) &&
+    isset($single_field_viewer_settings[$field_name]) &&
+    $single_field_viewer_settings[$field_name] == TRUE;
+}
+
+
+/**
+ * Implementation of hook_form_alter().
+ *
+ * This implementation adds configuration field
+ * to node type settings related to this module.
+ * Administrator can enable possibility of view
+ * fields in single way (only CCK fields)
+ */
+function single_field_viewer_form_alter(&$form, $form_state, $form_id) {
+  if ($form_id == 'node_type_form' && isset($form['identity']['type'])) {
+    //generate list of options for current node type
+    $fields = content_types($form['#node_type']->type);
+    $options = array_combine(
+      array_keys($fields['fields']),
+      array_keys($fields['fields'])
+    );
+    $form['single_field_viewer'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Single field viewer module settings'),
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+    );
+    $form['single_field_viewer']['single_field_viewer'] = array(
+      '#type' => 'checkboxes',
+      '#title' => t('Fields with single field view mode enabled'),
+      '#options' => $options,
+      '#default_value' => variable_get(
+        'single_field_viewer_'. $form['#node_type']->type,
+         array()
+      ),
+      '#description' => t('Please select fields for which single field value can be displayed on separate page. If enabled, field value will be displayed at node/%nid/field/%field_name/%delta')
+    );
+    $form['single_field_viewer']['single_field_viewer_block_first'] = array(
+      '#type' => 'checkboxes',
+      '#title' => t('Refuse access to the first field page. (So you can link the first field to the node page)'),
+      '#options' => $options,
+      '#default_value' => variable_get(
+        'single_field_viewer_block_first_'. $form['#node_type']->type,
+         array()
+      ),
+      '#description' => t('Please select fields for which single field page for the first field will be blocked. If enabled, the access to the field page with url node/%nid/field/%field_name/0 will be denied.')
+    );
+  }
+}
+
+
+/**
+ * Implementation of hook_theme()
+ */
+function single_field_viewer_theme() {
+  $themes = array(
+    'single_field_viewer' => array(
+      'arguments' => array('node' => NULL, 'field' => '', 'delta' => 0),
+      'template' => 'single_field_viewer'
+    )
+  );
+
+  return $themes;
+}
+
+
+/**
+ * Implementation of preprocess callback for single_field_viewer theme
+ * template.
+ */
+function single_field_viewer_preprocess_single_field_viewer(&$vars) {
+  $node = $vars['node'];
+  $field_name = $vars['field'];
+  $delta = $vars['delta'];
+  $vars['value'] = $node->{$field_name}[$delta];
+
+  //add posibility of using several templates name
+  if (!is_array($vars['template_files'])) {
+    $vars['template_files'] = array('single_field_viewer');
+  }
+  $vars['template_files'][] = 'single_field_viewer-'. $field_name;
+  $vars['template_files'][] = 'single_field_viewer-'. $node->type .'-'.
+    $field_name;
+}
+
+/**
+ * A helper function to prepare an url to a given field and delta.
+ * Checks if the option to refuse access to the first field page is on.
+ *
+ * @param $node
+ *   node object
+ * @param $field
+ *   field name
+ * @param $delta
+ *   given delta
+ * @return $link
+ *   If field with this delta exists prepare a link.
+ *   If delta does not exist do not return anything.
+ */
+function single_field_viewer_get_url($node, $field, $delta) {
+  if (($delta >= 0) && (count($node->{$field}) > $delta)) {
+    $field_block_settings = variable_get(
+      'single_field_viewer_block_first_'. $node->type,
+      array()
+    );
+
+    $field_block_settings = array_combine(
+      array_values($field_block_settings),
+      array_values($field_block_settings)
+    );
+
+    // Prepare link to current photo.
+    if (isset($field_block_settings[$field]) && ($delta == 0)) {
+      $link = 'node/' . $node->nid;
+    }
+    else {
+      $link = 'node/' . $node->nid . '/field/' . $field . '/' . $delta;
+    }
+    return $link;
+  }
+}

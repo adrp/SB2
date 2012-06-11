@@ -1,0 +1,119 @@
+# $Id$
+#
+# LANGUAGE translation of Drupal (general)
+# Copyright YEAR NAME <EMAIL@ADDRESS>
+# Generated from files:
+#  single_field_viewer.module: n/a
+#  single_field_viewer.info: n/a
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"POT-Creation-Date: 2012-01-27 12:43+0100\n"
+"PO-Revision-Date: YYYY-mm-DD HH:MM+ZZZZ\n"
+"Last-Translator: NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <EMAIL@ADDRESS>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+
+#: single_field_viewer.module:22
+msgid "Single field viewer defaults"
+msgstr ""
+
+#: single_field_viewer.module:23
+msgid "Default path pattern (applies to all node types and fields)"
+msgstr ""
+
+#: single_field_viewer.module:24
+msgid "single-field/[title-raw]/"
+msgstr ""
+
+#: single_field_viewer.module:25
+msgid "Bulk generate aliases for fields that are not aliased"
+msgstr ""
+
+#: single_field_viewer.module:26
+msgid "Generate aliases for all existing fields values which do not already have aliases."
+msgstr ""
+
+#: single_field_viewer.module:38
+msgid "Language neutral"
+msgstr ""
+
+#: single_field_viewer.module:55
+msgid "Default path pattern for @node_type (applies to all @node_type:@field_name  with blank patterns below)"
+msgstr ""
+
+#: single_field_viewer.module:62
+msgid "Pattern for all @node_type:@field_name paths in @language"
+msgstr ""
+
+#: single_field_viewer.module:67
+msgid "Pattern for all language neutral @node_type:@field_name  paths"
+msgstr ""
+
+#: single_field_viewer.module:74
+msgid "Pattern for all @node_type:@field_name  paths"
+msgstr ""
+
+#: single_field_viewer.module:343
+msgid "single_field_value: Delta of displayed CCK field value"
+msgstr ""
+
+#: single_field_viewer.module:346
+msgid "single_field_value: Delta of displayed CCK field name"
+msgstr ""
+
+#: single_field_viewer.module:349
+msgid "single_field_value: Title value of current displayed CCK data field"
+msgstr ""
+
+#: single_field_viewer.module:352
+msgid "single_field_value: Title value of current displayed CCK data field, words separated by commas"
+msgstr ""
+
+#: single_field_viewer.module:355
+msgid "single_field_value: Description value of current displayed CCK data field"
+msgstr ""
+
+#: single_field_viewer.module:457
+msgid "Single field viewer module settings"
+msgstr ""
+
+#: single_field_viewer.module:463
+msgid "Fields with single field view mode enabled"
+msgstr ""
+
+#: single_field_viewer.module:469
+msgid "Please select fields for which single field value can be displayed on separate page. If enabled, field value will be displayed at node/%nid/field/%field_name/%delta"
+msgstr ""
+
+#: single_field_viewer.module:473
+msgid "Refuse access to the first field page. (So you can link the first field to the node page)"
+msgstr ""
+
+#: single_field_viewer.module:479
+msgid "Please select fields for which single field page for the first field will be blocked. If enabled, the access to the field page with url node/%nid/field/%field_name/0 will be denied."
+msgstr ""
+
+#: single_field_viewer.module:124
+msgid "Bulk generation of single_field_viewers completed, one alias generated."
+msgid_plural "Bulk generation of single_field_viewers completed, @count aliases generated."
+msgstr[0] ""
+msgstr[1] ""
+
+#: single_field_viewer.info:0
+msgid "Single CCK field value viewer"
+msgstr ""
+
+#: single_field_viewer.info:0
+msgid "This module allows to display single CCK field value at separate pages. It could be helpfull if we need to make some SEO optimizations and dont need to create zillions of node like images or videos."
+msgstr ""
+
+#: single_field_viewer.info:0
+msgid "CCK"
+msgstr ""
+
