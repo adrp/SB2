@@ -1,0 +1,15 @@
+--- a/single_field_viewer.module
++++ b/single_field_viewer.module
+@@ -208,8 +208,10 @@ function _single_field_viewer_pathauto_update($node, $op) {
+             );
+ 
+             foreach ($tokens as $token => $value) {
+-              $placeholders['tokens'][] = "[{$token}]";
+-              $placeholders['values'][] = $value;
++              if (!in_array($placeholders['tokens'])) {
++                $placeholders['tokens'][] = "[{$token}]";
++              }
++              $placeholders['values'][$token] = $value;
+             }
+ 
+             $src = "node/{$node->nid}/field/{$field_name}/{$delta}";
