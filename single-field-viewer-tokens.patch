@@ -6,7 +6,7 @@
              foreach ($tokens as $token => $value) {
 -              $placeholders['tokens'][] = "[{$token}]";
 -              $placeholders['values'][] = $value;
-+              if (!in_array($placeholders['tokens'])) {
++              if (!in_array("[{$token}]", $placeholders['tokens'])) {
 +                $placeholders['tokens'][] = "[{$token}]";
 +              }
 +              $placeholders['values'][$token] = $value;
